@@ -1,0 +1,23 @@
+{
+  "name": "fluid-simulation",
+  "version": "0.0.0",
+  "description": "WebGL Fluid Simulation",
+  "license": "MIT",
+  "devDependencies": {
+    "parcel-bundler": "^1.12.3"
+  },
+  "dependencies": {
+    "pex-cam": "^2.7.1",
+    "pex-color": "^1.1.1",
+    "pex-context": "^2.9.1",
+    "pex-math": "^2.1.1",
+    "pex-random": "^1.0.1",
+    "pex-renderer": "^3.0.0-35",
+    "primitive-cube": "^2.0.1",
+    "primitive-sphere": "^3.0.0"
+  },
+  "scripts": {
+    "build": "node scripts/build.js",
+    "dev": "node scripts/dev.js"
+  }
+}
