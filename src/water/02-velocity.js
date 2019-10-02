@@ -70,23 +70,23 @@ export default function velocityAdvectionModule(ctx, app) {
     indices,
   };
 
-  ctx.submit(initializeVelocity, {
-    pass: ctx.pass({
-      color: [velocity1],
-    }),
-    uniforms: {
-      uFactor: 6.0,
-    },
-  });
+  // ctx.submit(initializeVelocity, {
+  //   pass: ctx.pass({
+  //     color: [velocity1],
+  //   }),
+  //   uniforms: {
+  //     uFactor: 6.0,
+  //   },
+  // });
 
-  ctx.submit(initializeVelocity, {
-    pass: ctx.pass({
-      color: [velocity2],
-    }),
-    uniforms: {
-      uFactor: 8.5,
-    },
-  });
+  // ctx.submit(initializeVelocity, {
+  //   pass: ctx.pass({
+  //     color: [velocity2],
+  //   }),
+  //   uniforms: {
+  //     uFactor: 8.5,
+  //   },
+  // });
 
   return function renderVelocityAdvection() {
     ctx.submit(advectVelocityCmd, {

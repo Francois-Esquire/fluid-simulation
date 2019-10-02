@@ -3,6 +3,7 @@ import { quad } from '../shapes';
 
 import drawingModule from './00-draw';
 import drawTrianglesModule from './00-triangles';
+import drawNoiseModule from './00-noise';
 import drawInteractionsModule from './00-interact';
 
 import drawScreenModule from './01-screen';
@@ -113,11 +114,12 @@ export default function waterModule(ctx, app) {
 
   return [
     drawScreenModule,
+    drawNoiseModule,
     drawVelocityModule,
     drawDivergenceModule,
     drawPressureModule,
     drawColorModule,
-    // drawingModule,
+    drawingModule,
     // drawTrianglesModule,
     drawInteractionsModule,
   ];

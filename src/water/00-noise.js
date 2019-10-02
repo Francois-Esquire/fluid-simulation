@@ -1,16 +1,7 @@
 import { glsl } from '../util';
 import { quad } from '../shapes';
 
-export default function terrainGenerator(ctx, app) {
-  const terrainMapHeight = 512;
-  const terrainMapWidth = 512;
-  const terrainMapTexture = ctx.texture2D({
-    width: terrainMapWidth,
-    height: terrainMapHeight,
-    pixelFormat: ctx.PixelFormat.RGBA8,
-    encoding: ctx.Encoding.SRGB,
-  });
-
+export default function noiseGenerator(ctx, app) {
   const { positions, texCoords, faces } = quad;
   const indices = ctx.indexBuffer(faces);
   const attributes = {
@@ -82,20 +73,14 @@ export default function terrainGenerator(ctx, app) {
       float y = vTexCoord.y;
       float x = vTexCoord.x;
       vec3 position = vec3(x, y, z);
-
-      float freq = uFrequency * abs(sin(uTime / 240.) * 2.0) / 2. + 4.;
-
-      float val = noise(position, uOctaves, freq, uPersistence);
+      float val = noise(position, uOctaves, uFrequency, uPersistence);
 
       vec3 color = vec3(val);
 
       gl_FragColor = vec4(color, 1.0);
     }`;
 
-  const generateTerrainMapCmd = {
-    pass: ctx.pass({
-      color: [terrainMapTexture],
-    }),
+  const generateNoiseMapCmd = {
     pipeline: ctx.pipeline({
       vert: standardVertexShader,
       frag: generatorFrag,
@@ -110,17 +95,32 @@ export default function terrainGenerator(ctx, app) {
     },
   };
 
-  app.state.terrainGenerator = {
-    terrainMapTexture,
-  };
+  ctx.submit(generateNoiseMapCmd, {
+    pass: ctx.pass({
+      color: [app.state.water.textures.velocity1],
+    }),
+    uniforms: {
+      uFrequency: 7.0,
+      uPersistence: 0.5,
+    },
+  });
+  ctx.submit(generateNoiseMapCmd, {
+    pass: ctx.pass({
+      color: [app.state.water.textures.velocity2],
+    }),
+    uniforms: {
+      uFrequency: 30.0,
+      uPersistence: 0.95,
+    },
+  });
 
   return function render() {
     // const freq = Math.sin(app.state.time / 120);
-    ctx.submit(generateTerrainMapCmd, {
-      uniforms: {
-        uTime: app.state.time,
-        // uFrequency: freq,
-      },
-    });
+    // ctx.submit(generateNoiseMapCmd, {
+    //   uniforms: {
+    //     uTime: app.state.time,
+    //     // uFrequency: freq,
+    //   },
+    // });
   };
 }
