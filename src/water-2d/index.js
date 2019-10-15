@@ -25,7 +25,7 @@ export default function water2D(ctx, app) {
     gridSize: resolution,
     gridUnit: 1 / resolution,
     timestep: 1 / 120.0,
-    jacobiIterations: 20,
+    jacobiIterations: 5,
     // quality
     density: 1.0,
   };
@@ -59,7 +59,7 @@ export default function water2D(ctx, app) {
   };
 
   if (textureFloat) {
-    screenTextureOptions.pixelFormat = ctx.PixelFormat.RGBA32F;
+    // screenTextureOptions.pixelFormat = ctx.PixelFormat.RGBA32F;
     simulationTextureOptions.pixelFormat = ctx.PixelFormat.RGBA32F;
   }
 
