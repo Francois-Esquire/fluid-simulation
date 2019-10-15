@@ -98,12 +98,12 @@ export default function velocityAdvectionModule(ctx, app) {
 
       // BOX (0.5-0.65):
 
-      // if (vTexCoord.x > 0.5 && vTexCoord.x < 0.65) {
-      //   if (vTexCoord.y > 0.5 && vTexCoord.y < 0.65) {
-      //     // TODO: calculate collision
-      //     velocity.xy = vec2(0.0, 0.0);
-      //   }
-      // }
+      if (vTexCoord.x > 0.5 && vTexCoord.x < 0.65) {
+        if (vTexCoord.y > 0.5 && vTexCoord.y < 0.65) {
+          // TODO: calculate collision
+          velocity.xy = vec2(0.0, 0.0);
+        }
+      }
 
 
       gl_FragColor = velocity;
