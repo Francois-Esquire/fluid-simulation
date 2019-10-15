@@ -1,9 +1,14 @@
 import createContext from 'pex-context';
 
+import {
+  // createWebGLCanvasContext,
+  getContext,
+  createCanvas,
+  createViewportMeta,
+} from './webgl';
+
 class Application {
   constructor() {
-    const { width, height, pixelRatio } = this;
-
     this.state = {
       time: 0,
       alpha: 0,
@@ -14,15 +19,12 @@ class Application {
       dragging: false,
     };
 
-    this.ctx = createContext({
-      width,
-      height,
-      pixelRatio,
-    });
-
-    this.availableExtensions = this.ctx.gl.getSupportedExtensions();
-
     [
+      // define public members
+      'render',
+      'stop',
+      'set',
+      // events
       'onMouseMove',
       'onMouseDown',
       'onMouseUp',
@@ -32,21 +34,40 @@ class Application {
       this[handler] = this[handler].bind(this);
     });
 
-    this.ctx.gl.canvas.addEventListener('mousemove', this.onMouseMove);
-    this.ctx.gl.canvas.addEventListener('mousedown', this.onMouseDown);
-    this.ctx.gl.canvas.addEventListener('mouseup', this.onMouseUp);
-
     window.addEventListener('deviceorientation', this.onDeviceOrientation);
     window.addEventListener('resize', this.onResize);
   }
 
-  // functions
+  _initialize(...args) {
+    const { width, height, pixelRatio } = this;
 
-  initialize(...args) {
+    createViewportMeta({ append: true });
+    const canvas = createCanvas({ width, height, pixelRatio, append: true });
+    const gl = getContext({ context: 'webgl', canvas, options: {} });
+
+    [
+      'WEBGL_debug_renderer_info',
+      'WEBGL_debug_shaders',
+      'WEBGL_depth_texture',
+    ].forEach(extName => {
+      const ext = gl.getExtension(extName);
+
+      if (!ext) console.warn(`Failed to load WebGL extension "${extName}"`);
+    });
+
+    this.availableExtensions = gl.getSupportedExtensions();
+
+    this.ctx = createContext({ gl });
+
+    // TODO: OVERLAY - create clear div overlay (over canvas) for UI interaction -> translate to canvas
+    canvas.addEventListener('mousemove', this.onMouseMove);
+    canvas.addEventListener('mousedown', this.onMouseDown);
+    canvas.addEventListener('mouseup', this.onMouseUp);
+
     this.modules = [];
 
-    // handle if exported module is a set of modules or initiates with a setup function
-    [].concat(...args).forEach(
+    // handle if exported module is a set of modules or initiates with a setup function of a module
+    [].concat(...args).map(
       function setupModule(moduleInitializer) {
         const module = moduleInitializer(this.ctx, this);
 
@@ -60,16 +81,26 @@ class Application {
     return this;
   }
 
-  render() {
+  // members
+
+  render(modules) {
+    const { modules: mods = this.modules } = this._initialize(modules);
+
     this.ctx.frame(() => {
+      // TODO: METRICS - a good place to keep an eye on performance
       this.state.time += 1;
-      this.modules.forEach(frame => frame(this.state));
+      mods.forEach(frame => frame(this.state));
     });
 
     return this;
   }
 
+  stop() {
+    // TODO: TERMINATE - program
+  }
+
   set(component, value) {
+    // TODO: STATEFUL - update affected modules from change
     if (['options'].includes(component)) {
       this[`_${component}`] = value;
     }
@@ -126,8 +157,8 @@ class Application {
     this.my = event.offsetY;
 
     if (this.state.dragging) {
-      this.state.mx = (this.mx / this.width);
-      this.state.my = (1 - this.my / this.height);
+      this.state.mx = this.mx / this.width;
+      this.state.my = 1 - this.my / this.height;
 
       // TODO: put values in -1 to 1 coordinate space
       // this.state.mx = 2 * (this.mx / this.width) - 1;

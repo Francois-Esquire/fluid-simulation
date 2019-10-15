@@ -1,4 +1,4 @@
-import { glsl } from '../util';
+import { screenVertexShader, glsl } from './shaders';
 
 export default function divergenceModule(ctx, app) {
   const {
@@ -6,8 +6,7 @@ export default function divergenceModule(ctx, app) {
       water: {
         indices,
         attributes,
-        constants: { timestep, density, gridUnit },
-        shaders: { screenVertexShader },
+        parameters: { timestep, density, gridUnit },
         textures: { velocity1, divergence },
       },
     },
@@ -30,11 +29,12 @@ export default function divergenceModule(ctx, app) {
     }
 
     void main() {
-      float dx = u(vTexCoord + vec2(uGridUnit, 0)).x - u(vTexCoord - vec2(uGridUnit, 0)).x;
-      float dy = u(vTexCoord + vec2(0, uGridUnit)).y - u(vTexCoord - vec2(0, uGridUnit)).y;
-      float d = ( -2.0 * uGridUnit * uDensity / uTimeStep ) * ( dx + dy );
+      vec2 unit = vec2(0.0, uGridUnit);
+      float dx = u( vTexCoord + unit.yx ).x - u( vTexCoord - unit.yx ).x;
+      float dy = u( vTexCoord + unit.xy ).y - u( vTexCoord - unit.xy ).y;
+      float divergence = ( -2.0 * uGridUnit * uDensity / uTimeStep ) * ( dx + dy );
 
-      gl_FragColor = vec4(d, 0., 0., 1.);
+      gl_FragColor = vec4(divergence, 0., 0., 0.);
     }`;
 
   const drawDivergenceCmd = {

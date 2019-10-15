@@ -1,3 +1,11 @@
+export { glsl } from '../util';
+
+export {
+  screenVertexShader,
+  screenFragmentShader,
+} from './screen';
+
+
 export {
   videoVertexShader,
   videoFragmentShader,

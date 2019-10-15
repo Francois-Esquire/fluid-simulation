@@ -35,8 +35,8 @@ export default function terrainMesh(ctx, app) {
   mat4.invert(uNormalMatrix, uViewMatrix);
   mat4.transpose(uNormalMatrix, uNormalMatrix);
 
-  const gridWidth = 128;
-  const gridHeight = 128;
+  const gridWidth = 256;
+  const gridHeight = 256;
   const grid = createPlane(4, 4, gridWidth, gridHeight, { quads: false });
 
   const depthMapSize = 512;
@@ -98,10 +98,11 @@ export default function terrainMesh(ctx, app) {
       vNormal = normalize(uNormalMatrix * normal + length(vHeightVector.xyz));
       vTexCoord = aTexCoord;
 
-      float heightValue = dot(vHeightVector, vec4(1.0));
+      float heightValue = dot(vHeightVector, vNormal);
 
       gl_Position = mvpMatrix * vec4(aVertex, 1.0);
-      gl_Position.y += length(vHeightVector.xyz);
+      // gl_Position.y += length(vHeightVector.xyz);
+      gl_Position.y += heightValue;
     }`;
 
   const drawTerrainFragmentShader = glsl`
@@ -116,14 +117,15 @@ export default function terrainMesh(ctx, app) {
     varying vec4 vHeightVector;
 
     void main() {
-      vec3 color = vec3(texture2D(uDepthMapTexture, vTexCoord).x) - vec3(vTexCoord, 0.0);
+      vec3 color =  mix(vec3(texture2D(uDepthMapTexture, vTexCoord).x), vHeightVector.xyz, 0.5);
+      // vec3 color = vec3(texture2D(uDepthMapTexture, vTexCoord).x) - vec3(vTexCoord, 0.0);
       // vec3 color = vec3(gl_FragCoord.z) - 0.5;
       // vec3 color = vHeightVector.xyz + (vNormal.xyz / 2.0);
       // vec3 color = vHeightVector.xyz;
       // vec3 color = vNormal.xyz;
 
       if (uApplyColor) {
-        float waterHeight = 1.25;
+        float waterHeight = 0.95;
         float height = length(color);
 
         if (height < waterHeight) {

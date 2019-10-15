@@ -2,6 +2,10 @@ import { glsl } from '../util';
 import { quad } from '../shapes';
 
 export default function terrainGenerator(ctx, app) {
+  const octaves = '18';
+  const frequency = 7.0;
+  const persistence = 0.5;
+
   const terrainMapHeight = 512;
   const terrainMapWidth = 512;
   const terrainMapTexture = ctx.texture2D({
@@ -28,7 +32,6 @@ export default function terrainGenerator(ctx, app) {
     }`;
   const generatorFrag = glsl`
     precision highp float;
-
 
     uniform float uTime;
     uniform int uOctaves;
@@ -66,7 +69,7 @@ export default function terrainGenerator(ctx, app) {
       float total = 0.0;
       float maxAmplitude = 0.0;
       float amplitude = 1.0;
-      const int o = 12;
+      const int o = ${octaves};
       for (int i = 0; i < o; i++) {
         total += snoise(position * frequency) * amplitude;
         frequency *= 2.0;
@@ -77,15 +80,12 @@ export default function terrainGenerator(ctx, app) {
     }
 
     void main() {
-      // float z = mix(hash(vTexCoord.y / vTexCoord.x), sin(vTexCoord.x), cos(vTexCoord.y));
       float z = 1.0;
       float y = vTexCoord.y;
       float x = vTexCoord.x;
       vec3 position = vec3(x, y, z);
 
-      float freq = uFrequency * abs(sin(uTime / 240.) * 2.0) / 2. + 4.;
-
-      float val = noise(position, uOctaves, freq, uPersistence);
+      float val = noise(position, uOctaves, uFrequency, uPersistence);
 
       vec3 color = vec3(val);
 
@@ -105,8 +105,8 @@ export default function terrainGenerator(ctx, app) {
     uniforms: {
       uTime: 0,
       uOctaves: 8,
-      uFrequency: 7.0,
-      uPersistence: 0.5,
+      uFrequency: frequency,
+      uPersistence: persistence,
     },
   };
 

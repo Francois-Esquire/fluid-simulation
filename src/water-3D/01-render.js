@@ -1,11 +1,12 @@
-export default function waterScreenModule(ctx, app) {
+import { screenVertexShader, screenFragmentShader } from '../shaders';
+
+export default function renderScreenModule(ctx, app) {
   const {
     state: {
-      water: {
+      water3D: {
         indices,
         attributes,
-        shaders: { screenVertexShader, screenFragmentShader },
-        textures: { screen },
+        textures,
       },
     },
   } = app;
@@ -21,14 +22,14 @@ export default function waterScreenModule(ctx, app) {
     attributes,
     indices,
     uniforms: {
-      uTexture: screen,
+      uTexture: textures.screen,
     },
   };
 
   return function renderScreen() {
     ctx.submit(drawScreenCmd, {
       uniforms: {
-        uTexture: app.state.water.textures.screen,
+        uTexture: textures.screen,
       },
     });
   };

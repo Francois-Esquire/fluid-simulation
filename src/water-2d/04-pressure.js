@@ -1,13 +1,12 @@
-import { glsl } from '../util';
+import { screenVertexShader, glsl } from './shaders';
 
 export default function pressureModule(ctx, app) {
   const {
     state: {
       water: {
-        constants: { timestep, density, gridUnit, jacobi },
         attributes,
         indices,
-        shaders: { screenVertexShader },
+        parameters: { timestep, density, gridUnit, jacobiIterations },
         textures: { pressure1, pressure2, velocity1, velocity2, divergence },
         swap,
       },
@@ -29,17 +28,21 @@ export default function pressureModule(ctx, app) {
     }
 
     void main() {
+      float gridSpan = 2.0 * uGridUnit;
+      vec2 unit = vec2(0., gridSpan);
+
       float divergence = texture2D(uDivergenceTexture, fract(vTexCoord)).x;
 
-      float p = 0.25 * (
-        divergence
-        + u(vTexCoord + vec2(2.0 * uGridUnit, 0))
-        + u(vTexCoord - vec2(2.0 * uGridUnit, 0))
-        + u(vTexCoord + vec2(0, 2.0 * uGridUnit))
-        + u(vTexCoord - vec2(0, 2.0 * uGridUnit))
+      float pressure = (1./5.) * (
+        u(vTexCoord)
+        + u(vTexCoord + unit.yx)
+        + u(vTexCoord - unit.yx)
+        + u(vTexCoord + unit.xy)
+        + u(vTexCoord - unit.xy)
+        + divergence
       );
 
-      gl_FragColor = vec4(p, 0., 0., 1.);
+      gl_FragColor = vec4(pressure, 0., 0., 1.);
     }`;
 
   const subtractPressureFragmentShader = glsl`
@@ -59,18 +62,24 @@ export default function pressureModule(ctx, app) {
     }
 
     void main() {
+      vec2 unit = vec2(0, uGridUnit);
+
+      float right = p(vTexCoord +unit.yx);
+      float left = p(vTexCoord -unit.yx);
+      float top = p(vTexCoord + unit.xy);
+      float bottom = p(vTexCoord - unit.xy);
+
+      vec2 gradient = (vec2(right - left, top - bottom) / 1.0) + 0.0002;
+
       vec2 uA = texture2D(uVelocityTexture, vTexCoord).xy;
 
-      float pX = p(vTexCoord + vec2(uGridUnit, 0)) - p(vTexCoord - vec2(uGridUnit, 0));
-      float pY = p(vTexCoord + vec2(0, uGridUnit)) - p(vTexCoord - vec2(0, uGridUnit));
-
-      float uX = uA.x - uTimeStep/(2.0 * uDensity * uGridUnit) * pX;
-      float uY = uA.y - uTimeStep/(2.0 * uDensity * uGridUnit) * pY;
+      float uX = uA.x - uTimeStep/(2.0 * uDensity * uGridUnit) * gradient.x;
+      float uY = uA.y - uTimeStep/(2.0 * uDensity * uGridUnit) * gradient.y;
 
       gl_FragColor = vec4(uX, uY, 0., 1.);
     }`;
 
-  const drawPressureCmd = {
+  const calculatePressureCmd = {
     pass: ctx.pass({
       color: [pressure1],
     }),
@@ -109,16 +118,23 @@ export default function pressureModule(ctx, app) {
   };
 
   return function renderPressure() {
-    for (let i = 0; i < jacobi; i++) {
-      ctx.submit(drawPressureCmd, {
+    for (let i = 0; i < jacobiIterations; i++) {
+      ctx.submit(calculatePressureCmd, {
         pass: ctx.pass({
           color: [app.state.water.textures.pressure2],
         }),
         uniforms: {
-          uDivergenceTexture: app.state.water.textures.divergence,
           uPressureTexture: app.state.water.textures.pressure1,
         },
       });
+      // ctx.submit(calculatePressureCmd, {
+      //   pass: ctx.pass({
+      //     color: [app.state.water.textures.pressure1],
+      //   }),
+      //   uniforms: {
+      //     uPressureTexture: app.state.water.textures.pressure2,
+      //   },
+      // });
       swap('pressure1', 'pressure2');
     }
 

@@ -1,33 +1,52 @@
-import { glsl } from '../util';
 import { quad } from '../shapes';
 
-import drawingModule from './00-draw';
-import drawTrianglesModule from './00-triangles';
-import drawNoiseModule from './00-noise';
 import drawInteractionsModule from './00-interact';
 
-import drawScreenModule from './01-screen';
+import renderModule from './01-render';
 import drawVelocityModule from './02-velocity';
 import drawDivergenceModule from './03-divergence';
 import drawPressureModule from './04-pressure';
 import drawColorModule from './05-color';
+import drawWaterModule from './06-water';
 
-export default function waterModule(ctx, app) {
-  const gridSize = 2048;
+/**
+ *
+ * TODO:
+ * - Set Bounds
+ * - Calculate delta/direction of interaction to push the veloicty field correctly; its just additive now.
+ *
+ */
 
-  const constants = {
-    gridSize,
+export default function water2D(ctx, app) {
+  const resolution = 1024;
+  const parameters = {
+    height: app.height,
+    width: app.width,
+    gridSize: resolution,
+    gridUnit: 1 / resolution,
     timestep: 1 / 120.0,
+    jacobiIterations: 20,
+    // quality
     density: 1.0,
-    gridUnit: 1 / gridSize,
-    jacobi: 10,
   };
+
+  // get extensions
+  const [textureFloat] = ['OES_texture_float'].map(extName => {
+    const ext = ctx.gl.getExtension(extName);
+    if (!ext) {
+      console.warn(`${extName} is not supported`);
+      return null;
+    }
+    return true;
+  });
+
+  const { gridSize, height, width } = parameters;
 
   // initialize textures
 
   const screenTextureOptions = {
-    height: app.height,
-    width: app.width,
+    height,
+    width,
     pixelFormat: ctx.PixelFormat.RGBA8,
     encoding: ctx.Encoding.SRGB,
   };
@@ -39,9 +58,15 @@ export default function waterModule(ctx, app) {
     encoding: ctx.Encoding.SRGB,
   };
 
+  if (textureFloat) {
+    screenTextureOptions.pixelFormat = ctx.PixelFormat.RGBA32F;
+    simulationTextureOptions.pixelFormat = ctx.PixelFormat.RGBA32F;
+  }
+
   const textures = {
     screen: ctx.texture2D(screenTextureOptions),
-    color: ctx.texture2D(simulationTextureOptions),
+    color1: ctx.texture2D(screenTextureOptions),
+    color2: ctx.texture2D(screenTextureOptions),
     velocity1: ctx.texture2D(simulationTextureOptions),
     velocity2: ctx.texture2D(simulationTextureOptions),
     divergence: ctx.texture2D(simulationTextureOptions),
@@ -67,60 +92,31 @@ export default function waterModule(ctx, app) {
     aTexCoord: ctx.vertexBuffer(texCoords),
   };
 
-  // common shaders
-
-  const screenVertexShader = glsl`
-    attribute vec2 aPosition;
-    attribute vec2 aTexCoord;
-
-    varying vec2 vTexCoord;
-
-    void main() {
-      vTexCoord = aTexCoord;
-
-      gl_Position = vec4(aPosition, 0.0, 1.0);
-    }
-  `;
-
-  const screenFragmentShader = glsl`
-    precision highp float;
-    precision highp sampler2D;
-
-    varying vec2 vTexCoord;
-
-    uniform sampler2D uTexture;
-
-    void main() {
-      gl_FragColor = texture2D(uTexture, vTexCoord);
-    }
-  `;
-
-  const shaders = {
-    screenVertexShader,
-    screenFragmentShader,
-  };
-
   // set initial water state for modules
 
   app.state.water = {
-    constants,
+    quad,
     indices,
     attributes,
-    quad,
-    shaders,
+    parameters,
     textures,
     swap,
+    onUpdate() {
+      // TODO: STATEFUL - rebuild/rewrite shaders and command
+    },
   };
 
-  return [
-    drawScreenModule,
-    drawNoiseModule,
+  const simulation = [
+    renderModule,
     drawVelocityModule,
     drawDivergenceModule,
     drawPressureModule,
     drawColorModule,
-    drawingModule,
+  ];
+
+  return [drawWaterModule].concat(simulation, [
+    // drawNoiseModule,
     // drawTrianglesModule,
     drawInteractionsModule,
-  ];
+  ]);
 }

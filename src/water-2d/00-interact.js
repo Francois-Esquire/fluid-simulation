@@ -1,4 +1,4 @@
-import { glsl } from '../util';
+import { screenVertexShader, glsl } from './shaders';
 
 export default function interactionModule(ctx, app) {
   const {
@@ -6,9 +6,8 @@ export default function interactionModule(ctx, app) {
       water: {
         attributes,
         indices,
-        // constants: { timestep },
-        shaders: { screenVertexShader },
-        textures: { screen, color },
+        parameters: { timestep },
+        textures: { velocity1, velocity2 },
         swap,
       },
     },
@@ -21,6 +20,7 @@ export default function interactionModule(ctx, app) {
     varying vec2 vTexCoord;
 
     uniform bool uDragging;
+    uniform float uTimeStep;
     uniform vec2 uMouse;
     uniform sampler2D uInputTexture;
 
@@ -30,13 +30,13 @@ export default function interactionModule(ctx, app) {
       if (uDragging) {
         float radius = .1;
         float dist = distance(uMouse, vTexCoord);
-        if (dist < radius) gl_FragColor.rgb += (vec3(0.2, 0.4, 0.7) * (1. - dist / radius));
+        if (dist < radius) gl_FragColor.rgb += (vec3(0.25) * (1. - dist / radius));
       }
     }`;
 
   const drawColorInteractionCmd = {
     pass: ctx.pass({
-      color: [color],
+      color: [velocity2],
     }),
     pipeline: ctx.pipeline({
       vert: screenVertexShader,
@@ -46,23 +46,24 @@ export default function interactionModule(ctx, app) {
     indices,
     uniforms: {
       uMouse: [0, 0],
-      uInputTexture: screen,
+      uTimeStep: timestep,
+      uInputTexture: velocity1,
     },
   };
 
   return function renderInteractions() {
-    const { mx, my, dragging } = app.state;
+    const { mx, my, dragging, water } = app.state;
 
     ctx.submit(drawColorInteractionCmd, {
       pass: ctx.pass({
-        color: [app.state.water.textures.color],
+        color: [water.textures.velocity2],
       }),
       uniforms: {
         uDragging: dragging,
         uMouse: [mx, my],
-        uInputTexture: app.state.water.textures.screen,
+        uInputTexture: water.textures.velocity1,
       },
     });
-    swap('color', 'screen');
+    swap('velocity1', 'velocity2');
   };
 }
