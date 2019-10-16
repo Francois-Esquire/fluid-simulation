@@ -1,25 +1,27 @@
-// import createContext from 'pex-context';
+import createContext from 'pex-context';
 
 import app from './app';
 
 import {
+  // cameraModule,
   // fluidModule,
   // smokeModule,
   // terrainModule,
-  // water2DModule,
+  water2DModule,
   // rayMarchingModule,
   // water3DModule,
-  transformFeedbackModule,
+  // transformFeedbackModule,
 } from './modules';
 
 const modules = [
+  // cameraModule,
   // fluidModule,
   // smokeModule,
   // terrainModule,
-  // water2DModule,
+  water2DModule,
   // rayMarchingModule,
   // water3DModule,
-  transformFeedbackModule,
+  // transformFeedbackModule,
 ];
 
 const options = {
@@ -27,10 +29,10 @@ const options = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-  window.app = app.set('options', options).initialize({ context: 'webgl2' });
+  window.app = app.set('options', options).initialize({ context: 'webgl' });
 
-  // const ctx = createContext({ gl: app.gl });
-  const ctx = { gl: app.gl };
+  const ctx = createContext({ gl: app.gl });
+  // const ctx = { gl: app.gl };
 
   app.render(ctx, modules);
 });

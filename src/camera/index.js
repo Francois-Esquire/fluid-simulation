@@ -1,2 +1,6 @@
-export { default as cameraProcessModule } from './process';
-export { default as cameraStreamModule } from './stream';
+import cameraStreamModule from './01-stream';
+import cameraProcessModule from './02-process';
+
+export default function cameraModule() {
+  return [cameraStreamModule, cameraProcessModule];
+}

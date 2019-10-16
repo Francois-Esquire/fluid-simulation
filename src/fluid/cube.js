@@ -30,6 +30,7 @@ export default function fluidCubeRenderModule(ctx, app) {
 
     varying vec3 vNormal;
     varying vec3 vLighting;
+    varying vec3 vPosition;
 
     highp vec3 ambientLight = vec3(0.3, 0.3, 0.3);
     highp vec3 directionalLightColor = vec3(1, 1, 1);
@@ -44,6 +45,7 @@ export default function fluidCubeRenderModule(ctx, app) {
 
       vLighting = ambientLight + (directionalLightColor * directional);
       vNormal = aNormal;
+      vPosition = (aPosition + vec3(1)) / 2.;
     }
     `;
 
@@ -51,6 +53,7 @@ export default function fluidCubeRenderModule(ctx, app) {
     precision highp float;
     varying vec3 vNormal;
     varying vec3 vLighting;
+    varying vec3 vPosition;
 
     uniform mat4 uProjectionMatrix;
     uniform mat4 uViewMatrix;
@@ -84,12 +87,15 @@ export default function fluidCubeRenderModule(ctx, app) {
     void main () {
       vec4 mat = vec4(rand(0.01)) * uProjectionMatrix * uViewMatrix;
 
-      gl_FragColor.rgb = 1.0 * vLighting * mat.rgb;
-      gl_FragColor.a = 0.5;
+      // gl_FragColor.rgb = 1.0 * vLighting * mat.rgb;
+      // gl_FragColor.a = 0.5;
 
       vec3 baseWaterValue = fract(vec3(0.2, 0.3, 0.8));
       // gl_FragColor.rgb = baseWaterValue * noise(gl_FragCoord.xyz);
-      gl_FragColor.rgb = (gl_FragColor.rgb) * mix(baseWaterValue * sin(gl_FragCoord.xyz / 60.), gl_FragColor.rgb, noise(baseWaterValue) * cos(gl_FragCoord.xyz / 85.));
+
+      // vec3 color = (gl_FragColor.rgb) * mix(baseWaterValue * sin(gl_FragCoord.xyz / 60.), gl_FragColor.rgb, noise(baseWaterValue) * cos(gl_FragCoord.xyz / 85.));
+      // gl_FragColor.rgb = cross((vPosition + vec3(1.)) / 2., color);
+      gl_FragColor = vec4(vPosition, 1.);
     }
     `;
 

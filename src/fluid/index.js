@@ -3,9 +3,11 @@ import fluidCubeModule from './cube';
 // import gridSimulationModule from './grid-sim';
 // import simulationModule from './simulation';
 
-export default [
-  // simulationModule,
-  fluidCubeModule,
-  // gridSimulationModule,
-  // fluidModule,
-];
+export default function fluidsModule() {
+  return [
+    // simulationModule,
+    fluidCubeModule,
+    // gridSimulationModule,
+    // fluidModule,
+  ];
+}

@@ -1,4 +1,5 @@
 // modules
+export { default as cameraModule } from './camera';
 export { default as fluidModule } from './fluid';
 export { default as smokeModule } from './smoke';
 export { default as terrainModule } from './terrain';
