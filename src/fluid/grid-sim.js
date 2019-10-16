@@ -89,20 +89,6 @@ export default function fluidSimulationModule(ctx, app) {
 
   // initialize commands - submit immediately
 
-  /** implementation breakdown
-    initialize color field, c
-    initialize velocity field, u
-
-    while(true):
-        u_a := advect field u through itself
-        d := calculate divergence of u_a
-        p := calculate pressure based on d, using jacobi iteration
-        u := u_a - gradient of p
-        c := advect field c through velocity field u
-        draw c
-        wait a bit
-   */
-
   return function render() {
     const {
       mx,

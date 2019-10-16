@@ -9,6 +9,7 @@ export const advectionTimeStepFragmentShader = glsl`
   varying vec2 vTexCoord;
 
   uniform float uTimeStep;
+
   uniform sampler2D uInputTexture;
   uniform sampler2D uSamplingTexture;
 

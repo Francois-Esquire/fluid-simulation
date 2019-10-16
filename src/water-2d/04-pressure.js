@@ -27,19 +27,18 @@ export default function pressureModule(ctx, app) {
       return texture2D(uPressureTexture, fract(coords)).x;
     }
 
-    void main() {
-      float gridSpan = 2.0 * uGridUnit;
-      vec2 unit = vec2(0., gridSpan);
+    float gridUnit = 2.0 * uGridUnit;
+    vec2 unit = vec2(0., gridUnit);
 
+    void main() {
       float divergence = texture2D(uDivergenceTexture, fract(vTexCoord)).x;
 
-      float pressure = (1./5.) * (
-        u(vTexCoord)
+      float pressure = (1./4.) * (
+        divergence
         + u(vTexCoord + unit.yx)
         + u(vTexCoord - unit.yx)
         + u(vTexCoord + unit.xy)
         + u(vTexCoord - unit.xy)
-        + divergence
       );
 
       gl_FragColor = vec4(pressure, 0., 0., 1.);
@@ -73,8 +72,8 @@ export default function pressureModule(ctx, app) {
 
       vec2 uA = texture2D(uVelocityTexture, vTexCoord).xy;
 
-      float uX = uA.x - uTimeStep/(2.0 * uDensity * uGridUnit) * gradient.x;
-      float uY = uA.y - uTimeStep/(2.0 * uDensity * uGridUnit) * gradient.y;
+      float uX = uA.x - (uTimeStep/(2.0 * uDensity * uGridUnit)) * gradient.x;
+      float uY = uA.y - (uTimeStep/(2.0 * uDensity * uGridUnit)) * gradient.y;
 
       gl_FragColor = vec4(uX, uY, 0., 1.);
     }`;
@@ -127,15 +126,15 @@ export default function pressureModule(ctx, app) {
           uPressureTexture: app.state.water.textures.pressure1,
         },
       });
-      // ctx.submit(calculatePressureCmd, {
-      //   pass: ctx.pass({
-      //     color: [app.state.water.textures.pressure1],
-      //   }),
-      //   uniforms: {
-      //     uPressureTexture: app.state.water.textures.pressure2,
-      //   },
-      // });
-      swap('pressure1', 'pressure2');
+      ctx.submit(calculatePressureCmd, {
+        pass: ctx.pass({
+          color: [app.state.water.textures.pressure1],
+        }),
+        uniforms: {
+          uPressureTexture: app.state.water.textures.pressure2,
+        },
+      });
+      // swap('pressure1', 'pressure2');
     }
 
     ctx.submit(subtractPressureCmd, {

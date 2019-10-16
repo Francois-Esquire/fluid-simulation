@@ -104,7 +104,7 @@ export default function rayMarchingModule(ctx, app) {
     ctx.submit(drawRayMarchingCmd, {
       uniforms: {
         // in seconds
-        uTime: (performance.now() - now) / 1000,
+        uTime: app.state.time
       },
     });
   };

@@ -1,9 +1,8 @@
 // https://gamedevelopment.tutsplus.com/tutorials/how-to-write-a-smoke-shader--cms-25587
 
 import { quad } from '../shapes';
-import { glsl } from '../util';
 
-import { screenImageVertexShader, screenImageFragmentShader } from '../shaders';
+import { screenImageVertexShader, screenImageFragmentShader, glsl } from '../shaders';
 
 const smokeSourceVertexShader = glsl`
   attribute vec2 aPosition;
@@ -145,10 +144,10 @@ export default function smoke(ctx, app) {
   };
 
   return function renderSmoke() {
-    const { mx, my, width, height } = app;
+    const { state: {mx, my}, width, height } = app;
 
     const uResolution = [width, height];
-    const uMouse = [mx, height - my];
+    const uMouse = [mx, my];
 
     ctx.submit(drawSmoke, {
       uniforms: {

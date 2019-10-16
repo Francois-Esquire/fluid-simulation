@@ -1,13 +1,13 @@
 import { quad } from '../shapes';
 
-import drawInteractionsModule from './00-interact';
+import renderPass from './01-render';
+import drawVelocityPass from './02-velocity';
+import drawDivergencePass from './03-divergence';
+import drawPressurePass from './04-pressure';
+import drawColorPass from './05-color';
+import drawPostProcessingPass from './06-post';
 
-import renderModule from './01-render';
-import drawVelocityModule from './02-velocity';
-import drawDivergenceModule from './03-divergence';
-import drawPressureModule from './04-pressure';
-import drawColorModule from './05-color';
-import drawWaterModule from './06-water';
+import drawInteractionsPass from './00-interact';
 
 /**
  *
@@ -20,14 +20,37 @@ import drawWaterModule from './06-water';
 export default function water2D(ctx, app) {
   const resolution = 1024;
   const parameters = {
-    height: app.height,
-    width: app.width,
     gridSize: resolution,
     gridUnit: 1 / resolution,
     timestep: 1 / 120.0,
-    jacobiIterations: 5,
+    jacobiIterations: 8,
     // quality
     density: 1.0,
+  };
+
+  // drawing surface
+
+  const { positions, texCoords, faces } = quad;
+  const indices = ctx.indexBuffer(faces);
+  const attributes = {
+    aPosition: ctx.vertexBuffer(positions),
+    aTexCoord: ctx.vertexBuffer(texCoords),
+  };
+
+  // initialize textures
+
+  const screenTextureOptions = {
+    height: app.height,
+    width: app.width,
+    pixelFormat: ctx.PixelFormat.RGBA8,
+    encoding: ctx.Encoding.SRGB,
+  };
+
+  const simulationTextureOptions = {
+    height: parameters.gridSize,
+    width: parameters.gridSize,
+    pixelFormat: ctx.PixelFormat.RGBA8,
+    encoding: ctx.Encoding.SRGB,
   };
 
   // get extensions
@@ -35,38 +58,20 @@ export default function water2D(ctx, app) {
     const ext = ctx.gl.getExtension(extName);
     if (!ext) {
       console.warn(`${extName} is not supported`);
-      return null;
+      return false;
     }
     return true;
   });
 
-  const { gridSize, height, width } = parameters;
-
-  // initialize textures
-
-  const screenTextureOptions = {
-    height,
-    width,
-    pixelFormat: ctx.PixelFormat.RGBA8,
-    encoding: ctx.Encoding.SRGB,
-  };
-
-  const simulationTextureOptions = {
-    height: gridSize,
-    width: gridSize,
-    pixelFormat: ctx.PixelFormat.RGBA8,
-    encoding: ctx.Encoding.SRGB,
-  };
-
   if (textureFloat) {
-    // screenTextureOptions.pixelFormat = ctx.PixelFormat.RGBA32F;
     simulationTextureOptions.pixelFormat = ctx.PixelFormat.RGBA32F;
   }
 
   const textures = {
-    screen: ctx.texture2D(screenTextureOptions),
+    // display
     color1: ctx.texture2D(screenTextureOptions),
     color2: ctx.texture2D(screenTextureOptions),
+    // simulation
     velocity1: ctx.texture2D(simulationTextureOptions),
     velocity2: ctx.texture2D(simulationTextureOptions),
     divergence: ctx.texture2D(simulationTextureOptions),
@@ -82,41 +87,46 @@ export default function water2D(ctx, app) {
     textures[texture2] = temp;
   }
 
-  // drawing surface
-
-  const { positions, texCoords, faces } = quad;
-
-  const indices = ctx.indexBuffer(faces);
-  const attributes = {
-    aPosition: ctx.vertexBuffer(positions),
-    aTexCoord: ctx.vertexBuffer(texCoords),
-  };
-
   // set initial water state for modules
 
   app.state.water = {
-    quad,
     indices,
     attributes,
     parameters,
     textures,
     swap,
-    onUpdate() {
-      // TODO: STATEFUL - rebuild/rewrite shaders and command
-    },
   };
 
+  /** implementation breakdown
+    initialize color field, c
+    initialize velocity field, u
+
+    while(true):
+      u_a := advect field u through itself
+      d := calculate divergence of u_a
+      p := calculate pressure based on d, using jacobi iteration
+      u := u_a - gradient of p
+      c := advect field c through velocity field u
+      draw c
+      wait a bit
+  */
+
+  // passes
+
   const simulation = [
-    renderModule,
-    drawVelocityModule,
-    drawDivergenceModule,
-    drawPressureModule,
-    drawColorModule,
+    // simulation passes in order
+    // TODO: more granular, need to add steps and break down a few
+    drawVelocityPass,
+    drawDivergencePass,
+    drawPressurePass,
   ];
 
-  return [drawWaterModule].concat(simulation, [
-    // drawNoiseModule,
-    // drawTrianglesModule,
-    drawInteractionsModule,
-  ]);
+  const visuals = [
+    drawColorPass,
+    drawPostProcessingPass,
+    // misc
+    drawInteractionsPass,
+  ];
+
+  return [renderPass].concat(simulation, visuals);
 }

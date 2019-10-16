@@ -1,4 +1,8 @@
-import { screenVertexShader, advectionTimeStepFragmentShader, glsl } from './shaders';
+import {
+  screenVertexShader,
+  advectionTimeStepFragmentShader,
+  glsl,
+} from './shaders';
 
 export default function velocityAdvectionModule(ctx, app) {
   const {
@@ -38,10 +42,8 @@ export default function velocityAdvectionModule(ctx, app) {
     uniform float uFactor;
 
     void main() {
-      float x = 1.0 - fract(sin(vTexCoord.x * uFactor));
-      float y = 1.0 - fract(cos(vTexCoord.y * uFactor));
-
-
+      float x = 1.0 - fract(cos(vTexCoord.x * uFactor));
+      float y = 1.0 - fract(sin(vTexCoord.y * uFactor));
 
       gl_FragColor = vec4(vec3(x, y, 0.), 1.0);
     }`;
@@ -82,28 +84,30 @@ export default function velocityAdvectionModule(ctx, app) {
 
     varying vec2 vTexCoord;
 
-    uniform float uGridUnit;
+    uniform highp float uGridUnit;
     uniform float uGridSize;
     uniform sampler2D uInputTexture;
 
     void main() {
       vec4 velocity = texture2D(uInputTexture, vTexCoord);
 
-      float nX = vTexCoord.x; // / uGridSize;
-      float nY = vTexCoord.y; // / uGridSize;
+      float nX = vTexCoord.x;
+      float nY = vTexCoord.y;
+      float bound = 10.;
 
-      if (nX == 0. || nX == 1. || nX == 0. || nX == 1. ) {
+      if (nX <= uGridUnit * bound || nX >= 1. - uGridUnit * bound || nY <= uGridUnit * bound || nY >= 1. - uGridUnit * bound ) {
+        // velocity.xy = vec2(1.) - velocity.xy;
         velocity.xy = vec2(0.0, 0.0);
       }
 
       // BOX (0.5-0.65):
 
-      if (vTexCoord.x > 0.5 && vTexCoord.x < 0.65) {
-        if (vTexCoord.y > 0.5 && vTexCoord.y < 0.65) {
-          // TODO: calculate collision
-          velocity.xy = vec2(0.0, 0.0);
-        }
-      }
+      // if (vTexCoord.x > 0.5 && vTexCoord.x < 0.65) {
+      //   if (vTexCoord.y > 0.5 && vTexCoord.y < 0.65) {
+      //     // TODO: calculate collision
+      //     velocity.xy = vec2(0.0, 0.0);
+      //   }
+      // }
 
 
       gl_FragColor = velocity;
@@ -139,17 +143,17 @@ export default function velocityAdvectionModule(ctx, app) {
       },
     });
 
-    // swap('velocity1', 'velocity2');
+    swap('velocity1', 'velocity2');
 
     ctx.submit(enforceVelocityBoundaries, {
       pass: ctx.pass({
-        color: [water.textures.velocity1],
+        color: [water.textures.velocity2],
       }),
       uniforms: {
-        uInputTexture: water.textures.velocity2,
+        uInputTexture: water.textures.velocity1,
       },
     });
 
-    // swap('velocity1', 'velocity2');
+    swap('velocity1', 'velocity2');
   };
 }

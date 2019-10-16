@@ -1,3 +1,6 @@
+// https://github.com/pex-gl/pex-gl
+// heavily inspired by pex-gl, extending for webgl2 if need be
+
 export const contexts = ['webgl2', 'webgl', 'experimental-webgl'];
 
 export function getContext({ context: ctx, canvas: c, options: opts } = {}) {
@@ -54,8 +57,9 @@ export function createCanvas({
   return canvas;
 }
 
-export function createViewportMeta({ append = true } = {}) {
+export function createViewportMeta({ append = true, ...props } = {}) {
   const name = 'viewport';
+  // TODO: variable input values for properties
   const content = [
     ['width', 'device-width'],
     ['user-scalable', 'no'],
@@ -63,8 +67,8 @@ export function createViewportMeta({ append = true } = {}) {
     ['maximum-scale', '1.0'],
     ['shrink-to-fit', '0.0'],
   ]
-    .filter(([property, value]) => !!value)
-    .map(([property, value]) => [property, value].join('='))
+    .filter(([property, value]) => !!value || !!props[property])
+    .map(([property, value]) => [property, props[property] || value].join('='))
     .join(', ');
 
   const meta = document.createElement('meta');
@@ -93,4 +97,21 @@ export function createWebGLCanvasContext({
   const gl = getContext({ context, canvas, options });
 
   return { canvas, meta, gl };
+}
+
+export function setDebugging(gl, debug = false) {
+  const extensions = [
+    'WEBGL_debug_renderer_info',
+    'WEBGL_debug_shaders',
+  ];
+
+  if (debug) {
+    extensions.forEach(extName => {
+      const ext = gl.getExtension(extName);
+
+      if (!ext) console.warn(`Failed to load WebGL debug extension "${extName}"`);
+    });
+  } else {
+    // TODO: disable extensions
+  }
 }

@@ -6,7 +6,7 @@ export default function renderScreenModule(ctx, app) {
       water: {
         indices,
         attributes,
-        textures: { screen },
+        textures: { color1 },
       },
     },
   } = app;
@@ -22,7 +22,7 @@ export default function renderScreenModule(ctx, app) {
     attributes,
     indices,
     uniforms: {
-      uTexture: screen,
+      uTexture: color1,
     },
   };
 
@@ -31,7 +31,7 @@ export default function renderScreenModule(ctx, app) {
 
     ctx.submit(drawScreenCmd, {
       uniforms: {
-        uTexture: water.textures.screen,
+        uTexture: water.textures.color1,
       },
     });
   };

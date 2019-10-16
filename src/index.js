@@ -1,18 +1,36 @@
+// import createContext from 'pex-context';
+
 import app from './app';
 
-// modules
-// import fluidModule from './fluid';
-// import smokeModule from './smoke';
-// import terrainModule from './terrain';
-import water2DModule from './water-2D';
-// import rayMarchingModule from './raymarch';
-// import water3DModule from './water-3D';
-
-const options = {};
-
-window.app = app.set('options', options).render(
+import {
+  // fluidModule,
+  // smokeModule,
   // terrainModule,
-  water2DModule,
+  // water2DModule,
   // rayMarchingModule,
   // water3DModule,
-);
+  transformFeedbackModule,
+} from './modules';
+
+const modules = [
+  // fluidModule,
+  // smokeModule,
+  // terrainModule,
+  // water2DModule,
+  // rayMarchingModule,
+  // water3DModule,
+  transformFeedbackModule,
+];
+
+const options = {
+  gl: {},
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  window.app = app.set('options', options).initialize({ context: 'webgl2' });
+
+  // const ctx = createContext({ gl: app.gl });
+  const ctx = { gl: app.gl };
+
+  app.render(ctx, modules);
+});
