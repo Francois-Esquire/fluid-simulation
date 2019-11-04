@@ -18,9 +18,13 @@ export default function renderWaterModule(ctx, app) {
     varying vec2 vTexCoord;
     uniform sampler2D uVelocityTexture;
 
+    float dot2(vec2 v) {
+      return dot(v, v);
+    }
+
     void main() {
       vec2 velocity = texture2D(uVelocityTexture, vTexCoord).xy;
-      vec3 color = vec3(0.2, 0.5, 0.8) - vec3(velocity, length(velocity));
+      vec3 color = vec3(0.2, 0.5, 0.8) - vec3(velocity, dot2(velocity));
 
       gl_FragColor = vec4(color, 1.0);
       // gl_FragColor.rgb = normalize(gl_FragColor.rgb);
@@ -48,7 +52,7 @@ export default function renderWaterModule(ctx, app) {
     uniform sampler2D uVelocityTexture;
 
     float texel = 1./1024.0;
-    float normalStrength = 5.;
+    float normalStrength = 50.;
     vec3 gr = vec3(0.299, 0.587, 0.114);
 
     void main() {
@@ -56,9 +60,9 @@ export default function renderWaterModule(ctx, app) {
       vec2 velocityRight = texture2D(uVelocityTexture, vTexCoord + vec2(texel, 0.)).xy;
       vec2 velocityUp = texture2D(uVelocityTexture, vTexCoord + vec2(0., texel)).xy;
 
-      float color = dot(vec3(1.0) - length(velocity * 2. - 1.) * 0.2, gr);
-      float colorRight = dot(vec3(1.0) - length(velocityRight * 2. - 1.) * 0.2, gr);
-      float colorUp = dot(vec3(1.0) - length(velocityUp * 2. - 1.) * 0.2, gr);
+      float color = dot(vec3(1.0) - length(velocity * 2. - 1.), gr);
+      float colorRight = dot(vec3(1.0) - length(velocityRight * 2. - 1.), gr);
+      float colorUp = dot(vec3(1.0) - length(velocityUp * 2. - 1.), gr);
 
       float deltaRight = colorRight - color;
       float deltaUp = colorUp - color;
@@ -93,8 +97,8 @@ export default function renderWaterModule(ctx, app) {
     }),
     pipeline: ctx.pipeline({
       vert: screenVertexShader,
-      // frag: drawToScreenFragmentShader,
-      frag: drawMilkToScreenFragmentShader,
+      frag: drawToScreenFragmentShader,
+      // frag: drawMilkToScreenFragmentShader,
       // frag: drawGrayScaleToNormalFragmentShader,
       // frag: drawDebugToScreenFragmentShader,
     }),

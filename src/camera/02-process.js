@@ -1,4 +1,4 @@
-import { glsl } from '../shaders';
+import { screenVertexShader, glsl } from '../shaders';
 import { quad } from '../shapes';
 
 export default function cameraProcessModule(ctx, app) {
@@ -83,14 +83,15 @@ export default function cameraProcessModule(ctx, app) {
         gl_FragColor = sample;
       }
     }`;
+
   const command = {
     pipeline: ctx.pipeline({
-      vert: videoVertexShader,
+      vert: screenVertexShader,
       frag: videoFragmentShader,
     }),
     attributes: {
       aPosition: ctx.vertexBuffer(positions),
-      aTexCoord0: ctx.vertexBuffer(texCoords),
+      aTexCoord: ctx.vertexBuffer(texCoords),
     },
     indices: ctx.indexBuffer(faces),
     uniforms: {
@@ -98,7 +99,7 @@ export default function cameraProcessModule(ctx, app) {
       uBounds: [0, 0, 1, 1],
       uColorFactor: 0,
     },
-    viewport: [0, 0, 256, 256],
+    // viewport: [0, 0, 256, 256],
   };
 
   return function frame() {
@@ -107,7 +108,7 @@ export default function cameraProcessModule(ctx, app) {
         uniforms: {
           uVideoTexture: app.state.camera.texture,
         },
-        viewport: [0, 0, ctx.gl.canvas.width, ctx.gl.canvas.height],
+        // viewport: [0, 0, ctx.gl.canvas.width, ctx.gl.canvas.height],
       });
     }
   };

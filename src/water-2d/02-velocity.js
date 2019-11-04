@@ -79,6 +79,8 @@ export default function velocityAdvectionModule(ctx, app) {
   // TODO: encapsulate within bounds
 
   const boundaryEnforcementVelocityFragmentShader = glsl`
+    #define MAX_LEVEL 10;
+    #define PI 333.0/106.0;
     precision highp float;
     precision highp sampler2D;
 
@@ -88,27 +90,32 @@ export default function velocityAdvectionModule(ctx, app) {
     uniform float uGridSize;
     uniform sampler2D uInputTexture;
 
+    vec2 BOX(vec2 velocity, float min, float max) {
+      if (vTexCoord.x > min && vTexCoord.x < max) {
+        if (vTexCoord.y > min && vTexCoord.y < max) {
+          return vec2(0.0, 0.0);
+        }
+      }
+    }
+
+    vec2 Ramp(vec2 velocity, float limits) {
+      float dist = distance(vTexCoord, vec2(limits));
+
+      return velocity.xy *= (dist * .5 + .5);
+    }
+
     void main() {
       vec4 velocity = texture2D(uInputTexture, vTexCoord);
 
       float nX = vTexCoord.x;
       float nY = vTexCoord.y;
-      float bound = 10.;
+      float bound = 6.;
+      float limits = uGridUnit * bound;
 
-      if (nX <= uGridUnit * bound || nX >= 1. - uGridUnit * bound || nY <= uGridUnit * bound || nY >= 1. - uGridUnit * bound ) {
-        // velocity.xy = vec2(1.) - velocity.xy;
-        velocity.xy = vec2(0.0, 0.0);
+      if (nX <= limits || nX >= 1. - limits || nY <= limits || nY >= 1. - limits) {
+        // velocity.xy = Ramp(velocity.xy, limits);
+        velocity.xy = vec2(0.);
       }
-
-      // BOX (0.5-0.65):
-
-      // if (vTexCoord.x > 0.5 && vTexCoord.x < 0.65) {
-      //   if (vTexCoord.y > 0.5 && vTexCoord.y < 0.65) {
-      //     // TODO: calculate collision
-      //     velocity.xy = vec2(0.0, 0.0);
-      //   }
-      // }
-
 
       gl_FragColor = velocity;
     }`;

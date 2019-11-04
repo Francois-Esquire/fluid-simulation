@@ -21,6 +21,7 @@ export default function interactionModule(ctx, app) {
 
     uniform bool uDragging;
     uniform float uTimeStep;
+    uniform vec2 uResolution;
     uniform vec2 uMouse;
     uniform sampler2D uInputTexture;
 
@@ -28,9 +29,21 @@ export default function interactionModule(ctx, app) {
       gl_FragColor = texture2D(uInputTexture, fract(vTexCoord));
 
       if (uDragging) {
-        float radius = .1;
         float dist = distance(uMouse, vTexCoord);
-        if (dist < radius) gl_FragColor.rgb += (vec3(0.25) * (1. - dist / radius));
+        float radius = .1;
+
+        // radius /= exp(dist);
+
+        if (dist < radius) {
+          float ratio = log(dist / radius);
+          // vec2 dir = (uMouse / uResolution) + vTexCoord;
+          vec2 dir = uMouse - vTexCoord;
+          // gl_FragColor.rg += dir * vec2(pow(ratio, .06125));
+          gl_FragColor.rg += dot(vec2(dir), gl_FragColor.xy) * vec2(1.);
+        }
+
+        // if (dist < radius) gl_FragColor.rgb += (vec3(.75) * ( (2. * dist / radius - 1.)  * 0.5 - 0.5 ));
+        // if (dist < radius) gl_FragColor.rg += (vec2(.75) * ( (2. * dist / radius - 1.)  * 0.5 - 0.5 ));
       }
     }`;
 
@@ -59,6 +72,7 @@ export default function interactionModule(ctx, app) {
         color: [water.textures.velocity2],
       }),
       uniforms: {
+        uResolution: [app.width, app.height],
         uDragging: dragging,
         uMouse: [mx, my],
         uInputTexture: water.textures.velocity1,

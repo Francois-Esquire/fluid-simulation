@@ -23,7 +23,7 @@ export default function water2D(ctx, app) {
     gridSize: resolution,
     gridUnit: 1 / resolution,
     timestep: 1 / 120.0,
-    jacobiIterations: 8,
+    jacobiIterations: 10,
     // quality
     density: 1.0,
   };
