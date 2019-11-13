@@ -1,8 +1,97 @@
 import { glsl } from '../shaders';
 
-export { screenVertexShader } from '../shaders';
+export { glsl, screenVertexShader } from '../shaders';
+
+export const rayMarchFragmentShader = glsl`
+    #define MAX_STEPS 100
+    #define MAX_DIST 100.
+    #define SURF_DIST .01
+
+    precision highp float;
+
+    varying vec2 vTexCoord;
+
+    uniform float uTime;
+    uniform vec2 uResolution;
+
+    float map(vec3 p) {
+      vec4 s = vec4(0., 1., 6, 1);
+
+      float sphereDist = length(p - s.xyz) - s.w;
+
+      float planeDist = p.y;
+
+      float d = min(sphereDist, planeDist);
+
+      return d;
+    }
+
+    float castRay(vec3 ro, vec3 rd) {
+      float dO = 0.;
+
+      for (int i = 0; i < MAX_STEPS; i++) {
+        vec3 p = ro + rd * dO;
+        float dS = map(p);
+        dO += dS;
+        if (dO > MAX_DIST || dS < SURF_DIST) break;
+      }
+
+      if (dO > 20.) dO=-1.;
+
+      return dO;
+    }
+
+    vec3 calcNormal(vec3 p) {
+      float d = map(p);
+      vec2 e = vec2(0.1, 0.);
+
+      vec3 n = d - vec3(
+        map(p - e.xyy),
+        map(p - e.yxy),
+        map(p - e.yyx)
+      );
+
+      return normalize(n);
+    }
+
+    void main() {
+      vec2 p = (vTexCoord.xy - 0.5) * uResolution / uResolution.y;
+      vec3 ro = vec3(0., 1., 0.);
+      vec3 rd = normalize(vec3(p.xy, 1.));
+
+      vec3 color = vec3(0.6, 0.7, 0.8);
+
+      float t = castRay(ro, rd);
+
+      if( t > 0.0 ) {
+        vec3 pos = ro + rd * t;
+        vec3 nor = calcNormal(pos);
+
+        vec3 light = vec3(0.8, 0.4, 0.2);
+        light.xz += vec2(sin(uTime), cos(uTime));
+
+        vec3 sun_dir = normalize( light - pos );
+        float sun_dif = clamp( dot(nor, sun_dir), 0., 1. );
+        float sun_sha = step( castRay(pos + nor*0.001, sun_dir), 0., 1. );
+        float sky_dif = clamp( 0.5 + 0.5*dot(nor, vec3(0., 1., 0.)), 0., 1. );
+
+        color  = vec3(1., 0.7, 0.5) * sun_dif * sun_sha;
+        color += vec3(0., 0.1, 0.2) * sky_dif;
+      }
+
+      gl_FragColor.rgb = color;
+      gl_FragColor.a = 1.0;
+    }`;
 
 export const fragmentShader = glsl`
+precision highp int;
+precision highp float;
+
+uniform vec2 iMouse;
+uniform vec2 iResolution;
+uniform vec2 iFrame;
+uniform float iTime;
+
 
 // The MIT License
 // Copyright © 2013 Inigo Quilez
@@ -19,12 +108,6 @@ export const fragmentShader = glsl`
 //
 // http://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm
 
-#if HW_PERFORMANCE==0
-#define AA 1
-#else
-#define AA 2   // make this 2 or 3 for antialiasing
-#endif
-
 //------------------------------------------------------------------
 
 float sdPlane( vec3 p )
@@ -37,11 +120,11 @@ float sdSphere( vec3 p, float s )
     return length(p)-s;
 }
 
-float sdBox( vec3 p, vec3 b )
-{
-    vec3 d = abs(p) - b;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));
-}
+// float sdBox( vec3 p, vec3 b )
+// {
+//     vec3 d = abs(p) - b;
+//     return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));
+// }
 
 float sdEllipsoid( in vec3 p, in vec3 r ) // approximated
 {
@@ -252,6 +335,14 @@ float sdOctahedron(vec3 p, float s)
 
 //------------------------------------------------------------------
 
+#if HW_PERFORMANCE==0
+#define AA 1
+#else
+#define AA 2   // make this 2 or 3 for antialiasing
+#endif
+
+//------------------------------------------------------------------
+
 vec2 opU( vec2 d1, vec2 d2 )
 {
 	return (d1.x<d2.x) ? d1 : d2;
@@ -389,7 +480,8 @@ vec3 calcNormal( in vec3 pos )
     vec3 n = vec3(0.0);
     for( int i=ZERO; i<4; i++ )
     {
-        vec3 e = 0.5773*(2.0*vec3((((i+3)>>1)&1),((i>>1)&1),(i&1))-1.0);
+        vec3 e = 0.5773*(2.0*vec3(-1.0));
+        // vec3 e = 0.5773*(2.0*vec3((((i+3)>>1)&1),((i>>1)&1),(i&1))-1.0);
         n += e*map(pos+0.0005*e).x;
     }
     return normalize(n);
@@ -489,7 +581,7 @@ mat3 setCamera( in vec3 ro, in vec3 ta, float cr )
     return mat3( cu, cv, cw );
 }
 
-void mainImage( out vec4 fragColor, in vec2 fragCoord )
+void main( out vec4 fragColor, in vec2 fragCoord )
 {
     vec2 mo = iMouse.xy/iResolution.xy;
 	float time = 15.0 + iTime*1.5;

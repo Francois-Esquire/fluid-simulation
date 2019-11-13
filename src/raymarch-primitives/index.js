@@ -1,3 +1,5 @@
 import rayMarchingPrimitivesModule from './01';
 
-export default [rayMarchingPrimitivesModule];
+export default function rayMarchingPrimitives() {
+  return [rayMarchingPrimitivesModule];
+}

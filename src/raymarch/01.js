@@ -98,8 +98,6 @@ export default function rayMarchingModule(ctx, app) {
     },
   };
 
-  const now = performance.now();
-
   return function rayMarchingRenderer() {
     ctx.submit(drawRayMarchingCmd, {
       uniforms: {
