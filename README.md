@@ -18,15 +18,21 @@ A playground for exploring fluid simulation in verious ways, using Pex.gl
 
 #### Ray marching
 
+---
+
 ### App design
 
-An effort was made to centralize one place for events, global values and other core features.
-Being that we rely on a per frame basis to check values of uniforms and other parameters,
-we can expect to pick up the updated values without the need to emit changes in values or
-for instance, carry the overhead of the garbage collector from updating an immutable store
-for state.
+The app is the source for events, global values and other core features.
+On a per frame basis, we can check values of uniforms and other parameters from `app.state`,
+we can expect to pick up the updated values without the need to emit there was a change.
+You can also use `state` to write your scene shared state like references to textures or parameters
+you want to share in your render stages that are called from your scene.
 
-#### module structure
+#### scene structure
+
+To create a scene, export a function that returns your render function.
+Handling cleanup can be done by having your render function return a function
+for cleanup.
 
 ```js
 export default function initialize(ctx, app) {

@@ -24,7 +24,7 @@ export const enabledEvents = new Set([
 
 export const useEventListener = true;
 
-export function on(eventName, callback, target) {
+export function on(eventName, callback, target, passive) {
   if (typeof callback !== 'function') throw eventHandlerNotFunction(eventName);
 
   if (enabledEvents.has(eventName)) {
@@ -42,8 +42,8 @@ export function on(eventName, callback, target) {
       };
 
       if (useEventListener) {
-        eventHandlers.set(eventName, handler)
-        target.addEventListener(eventName, handler);
+        eventHandlers.set(eventName, handler);
+        target.addEventListener(eventName, handler, passive);
       } else {
         const eventKey = `on${eventName}`;
 

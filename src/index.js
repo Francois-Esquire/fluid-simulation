@@ -7,9 +7,9 @@ import {
   // fluidModule,
   // smokeModule,
   // terrainModule,
-  // water2DModule,
+  water2DModule,
   // rayMarchingModule,
-  rayMarchingPrimitivesModule,
+  // rayMarchingPrimitivesModule,
   // water3DModule,
   // transformFeedbackModule,
 } from './modules';
@@ -19,9 +19,9 @@ const modules = [
   // fluidModule,
   // smokeModule,
   // terrainModule,
-  // water2DModule,
+  water2DModule,
   // rayMarchingModule,
-  rayMarchingPrimitivesModule,
+  // rayMarchingPrimitivesModule,
   // water3DModule,
   // transformFeedbackModule,
 ];

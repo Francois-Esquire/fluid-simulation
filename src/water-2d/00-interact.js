@@ -13,7 +13,7 @@ export default function interactionModule(ctx, app) {
     },
   } = app;
 
-  const interactionFragmentShader = glsl`
+  const interactionNoiseFragmentShader = glsl`
     precision highp float;
     precision highp sampler2D;
 
@@ -32,18 +32,46 @@ export default function interactionModule(ctx, app) {
         float dist = distance(uMouse, vTexCoord);
         float radius = .1;
 
-        // radius /= exp(dist);
-
         if (dist < radius) {
           float ratio = log(dist / radius);
-          // vec2 dir = (uMouse / uResolution) + vTexCoord;
           vec2 dir = uMouse - vTexCoord;
-          // gl_FragColor.rg += dir * vec2(pow(ratio, .06125));
-          gl_FragColor.rg += dot(vec2(dir), gl_FragColor.xy) * vec2(1.);
+          gl_FragColor.rg /= dot(vec2(dir), gl_FragColor.xy) * vec2(1.);
+        }
+      }
+    }`;
+  const interactionFragmentShader = glsl`
+    precision highp float;
+    precision highp sampler2D;
+
+    varying vec2 vTexCoord;
+
+    uniform bool uDragging;
+    uniform float uTimeStep;
+    uniform vec2 uResolution;
+    uniform vec2 uMouse;
+    uniform sampler2D uInputTexture;
+
+    void main() {
+      gl_FragColor = texture2D(uInputTexture, fract(vTexCoord));
+
+      if (uDragging) {
+        float dist = distance(uMouse, vTexCoord);
+        float radius = .1 * uResolution.x/uResolution.y / 2.;
+
+        radius /= exp(dist);
+
+        if (dist < radius) {
+          float ratio = log(dist * radius);
+
+          vec2 dir = (uMouse / uResolution) * vTexCoord;
+          gl_FragColor.rg += dir / vec2(pow(ratio, .006125));
+
+          // vec2 dir = uMouse - vTexCoord;
+          // gl_FragColor.rg /= dot(vec2(dir), gl_FragColor.xy) * vec2(1.);
+          gl_FragColor.rg += (vec2(.75) * ( (2. * dist / radius - 1.)  * 0.5 - 0.5 ));
         }
 
         // if (dist < radius) gl_FragColor.rgb += (vec3(.75) * ( (2. * dist / radius - 1.)  * 0.5 - 0.5 ));
-        // if (dist < radius) gl_FragColor.rg += (vec2(.75) * ( (2. * dist / radius - 1.)  * 0.5 - 0.5 ));
       }
     }`;
 

@@ -31,7 +31,7 @@ export default class WebGLApplication {
       pixelRatio = this.pixelRatio,
       context = 'webgl',
       canvas: c = null,
-      events: e = { mouse: true, touch: false, device: false },
+      events: e = { mouse: true, touch: true, device: false },
     } = props;
 
     this.canvas = createCanvas({ width, height, pixelRatio, canvas: c });
@@ -78,7 +78,7 @@ export default class WebGLApplication {
 
     eventsToBind.forEach(([eventName, handlerName, target]) => {
       this[handlerName] = this[handlerName].bind(this);
-      events.on(eventName, this[handlerName], target);
+      events.on(eventName, this[handlerName], target, true);
     });
 
     this.initialized = true;
@@ -106,16 +106,14 @@ export default class WebGLApplication {
 
     const app = this;
 
-    this.raf = window.requestAnimationFrame(
-      function renderFrame() {
-        // TODO: METRICS - a good place to keep an eye on performance
-        app.state.ticks += 1;
-        app.state.time = (performance.now() - startTime) / 1000;
-        app.modules.forEach(frame => frame(app.state));
+    this.raf = window.requestAnimationFrame(function renderFrame() {
+      // TODO: METRICS - a good place to keep an eye on performance
+      app.state.ticks += 1;
+      app.state.time = (performance.now() - startTime) / 1000;
+      app.modules.forEach(frame => frame(app.state));
 
-        window.requestAnimationFrame(renderFrame);
-      },
-    );
+      window.requestAnimationFrame(renderFrame);
+    });
 
     return this;
   }
@@ -205,8 +203,35 @@ export default class WebGLApplication {
     this.state.dx = 0;
     this.state.dy = 0;
   }
-  onTouchMove() {}
-  onTouchStart() {}
-  onTouchEnd() {}
-  onTouchCancel() {}
+  onTouchMove(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    const { clientX, clientY, force } = event.touches[0];
+    this.mx = clientX;
+    this.my = clientY;
+
+    this.state.force = force;
+
+    if (this.state.dragging) {
+      this.state.mx = this.mx / this.width;
+      this.state.my = 1 - this.my / this.height;
+    }
+  }
+  onTouchStart(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.state.dragging = true;
+    this.state.dx = 0;
+    this.state.dy = 0;
+  }
+  onTouchEnd(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.state.dragging = false;
+  }
+  onTouchCancel(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.state.dragging = false;
+  }
 }
