@@ -37,8 +37,8 @@ export function getContext({ context: ctx, canvas: c, options: opts } = {}) {
 }
 
 export function createCanvas({
-  width = window.innerHeight,
-  height = window.innerWidth,
+  width = window.innerWidth,
+  height = window.innerHeight,
   pixelRatio = window.devicePixelRatio,
   append = true,
 } = {}) {

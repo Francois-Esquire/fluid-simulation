@@ -111,9 +111,7 @@ export default function renderWaterModule(ctx, app) {
 
   return function waterRenderer() {
     ctx.submit(drawCmd, {
-      pass: ctx.pass({
-        color: [app.state.water.textures.color1],
-      }),
+      pass: app.state.water.passFor(app.state.water.textures.color1),
       uniforms: {
         uVelocityTexture: app.state.water.textures.velocity1,
       },

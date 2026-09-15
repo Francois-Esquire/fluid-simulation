@@ -61,7 +61,7 @@ export default function interactionModule(ctx, app) {
         radius /= exp(dist);
 
         if (dist < radius) {
-          float ratio = log(dist * radius);
+          float ratio = abs(log(max(dist * radius, 0.000001)));
 
           vec2 dir = (uMouse / uResolution) * vTexCoord;
           gl_FragColor.rg += dir / vec2(pow(ratio, .006125));
@@ -96,9 +96,7 @@ export default function interactionModule(ctx, app) {
     const { mx, my, dragging, water } = app.state;
 
     ctx.submit(drawColorInteractionCmd, {
-      pass: ctx.pass({
-        color: [water.textures.velocity2],
-      }),
+      pass: app.state.water.passFor(water.textures.velocity2),
       uniforms: {
         uResolution: [app.width, app.height],
         uDragging: dragging,

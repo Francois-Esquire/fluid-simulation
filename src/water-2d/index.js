@@ -86,6 +86,11 @@ export default function water2D(ctx, app) {
     textures[texture1] = textures[texture2];
     textures[texture2] = temp;
   }
+  const passes = new Map();
+  function passFor(texture) {
+    if (!passes.has(texture)) passes.set(texture, ctx.pass({ color: [texture] }));
+    return passes.get(texture);
+  }
 
   // set initial water state for modules
 
@@ -95,6 +100,7 @@ export default function water2D(ctx, app) {
     parameters,
     textures,
     swap,
+    passFor,
   };
 
   /** implementation breakdown

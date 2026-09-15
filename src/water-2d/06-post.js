@@ -80,10 +80,9 @@ export default function renderPostProcessingPass(ctx, app) {
 
   return function postProcessingRenderer() {
     ctx.submit(drawPostProcessingCmd, {
-      pass: ctx.pass({
-        color: [app.state.water.textures.color2],
-      }),
+      pass: app.state.water.passFor(app.state.water.textures.color2),
       uniforms: {
+        uResolution: [app.width, app.height],
         uColorTexture: app.state.water.textures.color1,
       },
     });

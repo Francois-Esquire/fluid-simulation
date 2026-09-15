@@ -38,11 +38,11 @@ export function on(eventName, callback, target, passive) {
       const handler = event => {
         if (events.has(eventName)) {
           events.get(eventName).forEach(cb => cb(event));
-        } else target[eventKey] = null;
+        }
       };
 
       if (useEventListener) {
-        eventHandlers.set(eventName, handler);
+        eventHandlers.set(eventName, { handler, options: passive });
         target.addEventListener(eventName, handler, passive);
       } else {
         const eventKey = `on${eventName}`;
@@ -63,8 +63,9 @@ export function off(eventName, callback, target) {
 
     if (handlers.size === 0) {
       if (useEventListener) {
-        const handler = eventHandlers.get(eventName);
-        target.addEventListener(eventName, handler);
+        const { handler, options } = eventHandlers.get(eventName);
+        target.removeEventListener(eventName, handler, options);
+        eventHandlers.delete(eventName);
       } else {
         const eventKey = `on${eventName}`;
 

@@ -1,4 +1,5 @@
-.*/
+.cache/
+.vite/
 node_modules
 public
 examples/

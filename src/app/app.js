@@ -8,6 +8,8 @@ export default class WebGLApplication {
     this._debug = debug;
 
     this.events = events;
+    this.frameGeneration = 0;
+    this.boundEvents = [];
 
     this.state = {
       time: 0,
@@ -25,7 +27,7 @@ export default class WebGLApplication {
 
   initialize(props = {}) {
     const {
-      debug = true,
+      debug = this._debug,
       width = this.width,
       height = this.height,
       pixelRatio = this.pixelRatio,
@@ -63,7 +65,7 @@ export default class WebGLApplication {
       eventsToBind.push(
         ['mousemove', 'onMouseMove', this.canvas],
         ['mousedown', 'onMouseDown', this.canvas],
-        ['mouseup', 'onMouseUp', this.canvas],
+        ['mouseup', 'onMouseUp', window],
       );
     }
 
@@ -78,7 +80,8 @@ export default class WebGLApplication {
 
     eventsToBind.forEach(([eventName, handlerName, target]) => {
       this[handlerName] = this[handlerName].bind(this);
-      events.on(eventName, this[handlerName], target, true);
+      events.on(eventName, this[handlerName], target, { capture: true, passive: false });
+      this.boundEvents.push([eventName, this[handlerName], target]);
     });
 
     this.initialized = true;
@@ -87,6 +90,7 @@ export default class WebGLApplication {
   }
 
   render(ctx, modules = []) {
+    this.stop();
     this.modules = [];
     this.ctx = ctx;
 
@@ -104,28 +108,34 @@ export default class WebGLApplication {
 
     const startTime = performance.now();
 
-    const app = this;
-
-    this.raf = window.requestAnimationFrame(function renderFrame() {
-      // TODO: METRICS - a good place to keep an eye on performance
-      app.state.ticks += 1;
-      app.state.time = (performance.now() - startTime) / 1000;
-      app.modules.forEach(frame => frame(app.state));
-
-      window.requestAnimationFrame(renderFrame);
+    const generation = ++this.frameGeneration;
+    this.running = true;
+    ctx.frame(() => {
+      if (!this.running || generation !== this.frameGeneration) return false;
+      this.state.ticks += 1;
+      this.state.time = (performance.now() - startTime) / 1000;
+      this.modules.forEach(frame => frame(this.state));
     });
 
     return this;
   }
 
   stop() {
-    window.cancelAnimationFrame(this.raf);
+    this.running = false;
 
     return this;
   }
 
   destroy() {
-    // TODO: TERMINATE - program and clean up resources, remove events
+    this.stop();
+    this.boundEvents.forEach(([name, handler, target]) => events.off(name, handler, target));
+    this.boundEvents = [];
+    if (this.ctx) this.ctx.dispose();
+    this.ctx = null;
+    this.modules = [];
+    delete this.state.water;
+    if (this.canvas) this.canvas.remove();
+    this.initialized = false;
   }
 
   set(component, value) {
@@ -164,6 +174,11 @@ export default class WebGLApplication {
         height,
         pixelRatio,
       });
+      if (this.state.water) {
+        ['color1', 'color2'].forEach(name => {
+          this.ctx.update(this.state.water.textures[name], { width, height });
+        });
+      }
     }
   }
   onDeviceMotion() {}
@@ -179,12 +194,13 @@ export default class WebGLApplication {
     this.state.gamma = gamma;
   }
   onMouseMove(event) {
-    this.mx = event.offsetX;
-    this.my = event.offsetY;
+    const bounds = this.canvas.getBoundingClientRect();
+    this.mx = (event.clientX - bounds.left) / bounds.width;
+    this.my = 1 - (event.clientY - bounds.top) / bounds.height;
 
     if (this.state.dragging) {
-      this.state.mx = this.mx / this.width;
-      this.state.my = 1 - this.my / this.height;
+      this.state.mx = this.mx;
+      this.state.my = this.my;
 
       // TODO: put values in -1 to 1 coordinate space
       // this.state.mx = 2 * (this.mx / this.width) - 1;
@@ -194,8 +210,7 @@ export default class WebGLApplication {
   onMouseDown(event) {
     this.state.dragging = true;
 
-    this.state.mx = this.mx;
-    this.state.my = this.my;
+    this.onMouseMove(event);
   }
   onMouseUp(event) {
     this.state.dragging = false;
@@ -206,21 +221,24 @@ export default class WebGLApplication {
   onTouchMove(event) {
     event.preventDefault();
     event.stopPropagation();
+    if (!event.touches.length) return;
     const { clientX, clientY, force } = event.touches[0];
-    this.mx = clientX;
-    this.my = clientY;
+    const bounds = this.canvas.getBoundingClientRect();
+    this.mx = (clientX - bounds.left) / bounds.width;
+    this.my = 1 - (clientY - bounds.top) / bounds.height;
 
     this.state.force = force;
 
     if (this.state.dragging) {
-      this.state.mx = this.mx / this.width;
-      this.state.my = 1 - this.my / this.height;
+      this.state.mx = this.mx;
+      this.state.my = this.my;
     }
   }
   onTouchStart(event) {
     event.preventDefault();
     event.stopPropagation();
     this.state.dragging = true;
+    this.onTouchMove(event);
     this.state.dx = 0;
     this.state.dy = 0;
   }

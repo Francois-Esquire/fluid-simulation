@@ -1,16 +1,14 @@
 export function createCanvas({
-  width = window.innerHeight,
-  height = window.innerWidth,
+  width = window.innerWidth,
+  height = window.innerHeight,
   pixelRatio = window.devicePixelRatio,
   canvas: _canvasToUse = null,
   append = _canvasToUse instanceof HTMLCanvasElement ? false : true,
 } = {}) {
   const canvas = _canvasToUse || document.createElement('canvas');
 
-  if (pixelRatio !== 1) {
-    canvas.style.width = width + 'px';
-    canvas.style.height = height + 'px';
-  }
+  canvas.style.width = width + 'px';
+  canvas.style.height = height + 'px';
 
   canvas.width = width * pixelRatio;
   canvas.height = height * pixelRatio;
@@ -21,6 +19,8 @@ export function createCanvas({
 }
 
 export function createViewportMeta({ append = true, ...props } = {}) {
+  const existing = document.querySelector('meta[name="viewport"]');
+  if (existing) return existing;
   const name = 'viewport';
   // TODO: variable input values for properties
   const content = [

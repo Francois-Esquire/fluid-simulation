@@ -3,19 +3,24 @@
 
 <head>
   <title>Fluid Simulator</title>
-  <!-- <meta name="viewport" content="width=device-width, initial-scale=1.0" /> -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <style>
     body {
       margin: 0;
       background: black;
-      overflow-y: hidden;
+      overflow: hidden;
+      color: white;
+      font-family: system-ui, sans-serif;
     }
+    canvas { display: block; touch-action: none; }
+    .notice { position: fixed; top: 12px; left: 12px; max-width: calc(100% - 48px); padding: 10px 12px; background: #111c; border-radius: 6px; pointer-events: none; }
   </style>
 </head>
 
 <body>
-  <script type="text/javascript" src="./index.js"></script>
+  <div class="notice" id="notice">Drag across the canvas to disturb the fluid.</div>
+  <script type="module" src="./index.js"></script>
 </body>
 
 </html>

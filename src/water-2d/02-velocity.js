@@ -141,9 +141,7 @@ export default function velocityAdvectionModule(ctx, app) {
     const { water } = app.state;
 
     ctx.submit(advectVelocityCmd, {
-      pass: ctx.pass({
-        color: [water.textures.velocity2],
-      }),
+      pass: app.state.water.passFor(water.textures.velocity2),
       uniforms: {
         uInputTexture: water.textures.velocity1,
         uSamplingTexture: water.textures.velocity1,
@@ -153,9 +151,7 @@ export default function velocityAdvectionModule(ctx, app) {
     swap('velocity1', 'velocity2');
 
     ctx.submit(enforceVelocityBoundaries, {
-      pass: ctx.pass({
-        color: [water.textures.velocity2],
-      }),
+      pass: app.state.water.passFor(water.textures.velocity2),
       uniforms: {
         uInputTexture: water.textures.velocity1,
       },

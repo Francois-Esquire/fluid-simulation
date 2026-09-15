@@ -27,10 +27,9 @@ export default function pressureModule(ctx, app) {
       return texture2D(uPressureTexture, fract(coords)).x;
     }
 
-    float gridUnit = 2.0 * uGridUnit;
-    vec2 unit = vec2(0., gridUnit);
-
     void main() {
+      float gridUnit = 2.0 * uGridUnit;
+      vec2 unit = vec2(0., gridUnit);
       float divergence = texture2D(uDivergenceTexture, fract(vTexCoord)).x;
 
       float pressure = (1./4.) * (
@@ -119,17 +118,13 @@ export default function pressureModule(ctx, app) {
   return function renderPressure() {
     for (let i = 0; i < jacobiIterations; i++) {
       ctx.submit(calculatePressureCmd, {
-        pass: ctx.pass({
-          color: [app.state.water.textures.pressure2],
-        }),
+        pass: app.state.water.passFor(app.state.water.textures.pressure2),
         uniforms: {
           uPressureTexture: app.state.water.textures.pressure1,
         },
       });
       ctx.submit(calculatePressureCmd, {
-        pass: ctx.pass({
-          color: [app.state.water.textures.pressure1],
-        }),
+        pass: app.state.water.passFor(app.state.water.textures.pressure1),
         uniforms: {
           uPressureTexture: app.state.water.textures.pressure2,
         },
@@ -138,9 +133,7 @@ export default function pressureModule(ctx, app) {
     }
 
     ctx.submit(subtractPressureCmd, {
-      pass: ctx.pass({
-        color: [app.state.water.textures.velocity2],
-      }),
+      pass: app.state.water.passFor(app.state.water.textures.velocity2),
       uniforms: {
         uVelocityTexture: app.state.water.textures.velocity1,
         uPressureTexture: app.state.water.textures.pressure1,
