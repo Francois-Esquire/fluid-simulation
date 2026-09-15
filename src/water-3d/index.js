@@ -1,106 +1,61 @@
-import { quad } from '../shapes';
-
-import visualizeModule from './00-visualize';
-import renderModule from './01-render';
-import particlesModule from './02-particles';
-import velocityModule from './03-velocity';
+import { createSimulation } from './simulation';
+import { createCamera } from './camera';
+import { createRenderer } from './renderer';
 
 export default function water3D(ctx, app) {
-  const resolution = 1024;
-  const parameters = {
-    height: app.height,
-    width: app.width,
-    gridSize: resolution,
-    gridUnit: 1 / resolution,
-    timestep: 1 / 120.0,
-    jacobiIterations: 10,
-    // quality
-    density: 1.0,
-  };
+  const simulation = createSimulation();
+  const camera = createCamera(app.canvas);
+  const pause = document.getElementById('particle-pause');
+  const reset = document.getElementById('particle-reset');
+  const status = document.getElementById('particle-status');
+  const zoomIn = document.getElementById('particle-zoom-in');
+  const zoomOut = document.getElementById('particle-zoom-out');
+  const contacts = document.getElementById('particle-contacts');
+  let previousTime = null;
 
-  // get extensions
-
-  const [textureFloat] = ['OES_texture_float'].map(extName => {
-    const ext = ctx.gl.getExtension(extName);
-    if (!ext) {
-      console.warn(`${extName} is not supported`);
-      return null;
-    }
-    return true;
-  });
-
-  const { gridSize, height, width } = parameters;
-
-  // initialize textures
-
-  const screenTextureOptions = {
-    height,
-    width,
-    pixelFormat: ctx.PixelFormat.RGBA8,
-    encoding: ctx.Encoding.SRGB,
-  };
-
-  const simulationTextureOptions = {
-    height: gridSize,
-    width: gridSize,
-    pixelFormat: ctx.PixelFormat.RGBA8,
-    encoding: ctx.Encoding.SRGB,
-  };
-
-  if (textureFloat) {
-    simulationTextureOptions.pixelFormat = ctx.PixelFormat.RGBA32F;
+  function updateControls() {
+    pause.textContent = simulation.paused ? 'Play' : 'Pause';
+    status.textContent = simulation.count.toLocaleString() + ' particles · ' +
+      (simulation.paused ? 'Paused' : 'Running') +
+      (simulation.parameters.contactsEnabled ? ' · Particle contacts, not liquid yet' : ' · Collisions off: particles can overlap');
+    contacts.checked = simulation.parameters.contactsEnabled;
   }
-
-  const textures = {
-    screen: ctx.texture2D(screenTextureOptions),
-    particle1: ctx.texture2D(simulationTextureOptions),
-    particle2: ctx.texture2D(simulationTextureOptions),
-    velocity1: ctx.texture2D(simulationTextureOptions),
-    velocity2: ctx.texture2D(simulationTextureOptions),
-    divergence: ctx.texture2D(simulationTextureOptions),
-    pressure1: ctx.texture2D(simulationTextureOptions),
-    pressure2: ctx.texture2D(simulationTextureOptions),
-  };
-
-  // swap textures helper
-
-  function swap(texture1, texture2) {
-    const temp = textures[texture1];
-    textures[texture1] = textures[texture2];
-    textures[texture2] = temp;
+  function onPause() {
+    simulation.paused = !simulation.paused;
+    updateControls();
   }
-
-  const passes = new Map();
-  function passFor(texture) {
-    if (!passes.has(texture)) passes.set(texture, ctx.pass({ color: [texture] }));
-    return passes.get(texture);
+  function onReset() {
+    simulation.reset();
+    updateControls();
   }
+  function dispose() {
+    camera.dispose();
+    pause.removeEventListener('click', onPause);
+    reset.removeEventListener('click', onReset);
+    zoomIn.removeEventListener('click', onZoomIn);
+    zoomOut.removeEventListener('click', onZoomOut);
+    contacts.removeEventListener('change', onContacts);
+  }
+  function onContacts() {
+    simulation.parameters.contactsEnabled = contacts.checked;
+    onReset();
+  }
+  function onZoomIn() { camera.distance = Math.max(4.5, camera.distance / 1.15); }
+  function onZoomOut() { camera.distance = Math.min(12, camera.distance * 1.15); }
 
-  // drawing surface
+  app.state.water3D = { simulation, camera, dispose };
+  const render = createRenderer(ctx, app, simulation, camera);
+  pause.addEventListener('click', onPause);
+  reset.addEventListener('click', onReset);
+  zoomIn.addEventListener('click', onZoomIn);
+  zoomOut.addEventListener('click', onZoomOut);
+  contacts.addEventListener('change', onContacts);
+  updateControls();
 
-  const { positions, texCoords, faces } = quad;
-
-  const indices = ctx.indexBuffer(faces);
-  const attributes = {
-    aPosition: ctx.vertexBuffer(positions),
-    aTexCoord: ctx.vertexBuffer(texCoords),
+  return function frame(state) {
+    const elapsed = previousTime === null ? 0 : state.time - previousTime;
+    previousTime = state.time;
+    simulation.advance(elapsed);
+    render();
   };
-
-  // set initial water state for modules
-
-  app.state.water3D = {
-    quad,
-    indices,
-    attributes,
-    parameters,
-    textures,
-    swap,
-    passFor,
-  };
-
-  const renderable = [];
-  const simulation = [particlesModule, velocityModule];
-  const misc = [visualizeModule, renderModule];
-
-  return [].concat(renderable, simulation, misc);
 }

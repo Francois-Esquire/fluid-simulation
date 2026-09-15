@@ -2,6 +2,7 @@
 <html>
 
 <head>
+  <meta charset="utf-8" />
   <title>Fluid Simulator</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
@@ -17,6 +18,10 @@
     .controls { position: fixed; z-index: 1; top: 12px; left: 12px; max-width: calc(100% - 48px); padding: 10px 12px; background: #111c; border-radius: 6px; }
     select { margin-left: 8px; padding: 4px; color: white; background: #222; font: inherit; }
     .notice { margin-top: 8px; font-size: 14px; }
+    button { padding: 6px 12px; border: 1px solid #52676d; border-radius: 4px; background: #162a31; color: white; font: inherit; cursor: pointer; }
+    button:focus-visible, select:focus-visible { outline: 2px solid #7de5d3; outline-offset: 3px; }
+    #particle-controls { margin-top: 12px; }
+    #particle-status { display: block; margin-top: 8px; max-width: 380px; font-size: 12px; color: #a4bdc5; }
   </style>
 </head>
 
@@ -29,6 +34,14 @@
       <option value="water-3d">Water 3D (experimental)</option>
     </select>
     <div class="notice" id="notice" aria-live="polite">Drag across the canvas to disturb the fluid.</div>
+    <div id="particle-controls" hidden>
+      <button id="particle-pause" type="button">Play</button>
+      <button id="particle-reset" type="button">Reset</button>
+      <button id="particle-zoom-in" type="button" aria-label="Zoom in">+</button>
+      <button id="particle-zoom-out" type="button" aria-label="Zoom out">−</button>
+      <label style="display: block; margin-top: 8px; font-size: 14px;"><input id="particle-contacts" type="checkbox" checked /> Particle collisions</label>
+      <output id="particle-status" aria-live="polite"></output>
+    </div>
   </div>
   <script type="module" src="./index.js"></script>
 </body>

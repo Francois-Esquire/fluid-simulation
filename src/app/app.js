@@ -128,6 +128,7 @@ export default class WebGLApplication {
 
   destroy() {
     this.stop();
+    this.state.water3D?.dispose?.();
     this.boundEvents.forEach(([name, handler, target]) => events.off(name, handler, target));
     this.boundEvents = [];
     if (this.ctx) this.ctx.dispose();
