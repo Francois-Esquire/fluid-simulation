@@ -1,32 +1,23 @@
-import { glsl } from '../shaders';
+import { createWaterSurface } from './surface';
 
-export function createRenderer(ctx, app, simulation, camera) {
+export function createRenderer(device, app, simulation, camera) {
+  const { gl } = device;
   const { radius, minimum, maximum } = simulation.parameters;
-  const pointBuffer = ctx.vertexBuffer(simulation.positions);
-  const colors = new Float32Array(simulation.count * 3);
-  for (let particle = 0; particle < simulation.count; particle++) {
-    const height = (simulation.positions[particle * 3 + 1] - 1) / 1.4;
-    colors.set([0.15 + 0.45 * height, 0.65 + 0.25 * height, 0.8], particle * 3);
-  }
-  const vertex = glsl`
-    attribute vec3 aPosition;
-    uniform mat4 uView;
-    uniform mat4 uProjection;
-    void main() {
-      gl_Position = uProjection * uView * vec4(aPosition, 1.0);
-    }`;
-  const fragment = glsl`
+  const vertex = `#version 300 es
+    layout(location = 0) in vec3 aPosition;
+    uniform mat4 uView, uProjection;
+    uniform vec3 uTank;
+    void main() { gl_Position = uProjection * uView * vec4(aPosition + uTank, 1.0); }`;
+  const fragment = `#version 300 es
     precision highp float;
     uniform vec3 uColor;
-    void main() { gl_FragColor = vec4(uColor, 1.0); }`;
-  const floor = {
-    pipeline: ctx.pipeline({ vert: vertex, frag: fragment, depthTest: true }),
-    attributes: { aPosition: ctx.vertexBuffer([
-      [minimum[0], -0.01, minimum[2]], [maximum[0], -0.01, minimum[2]], [maximum[0], -0.01, maximum[2]],
-      [minimum[0], -0.01, minimum[2]], [maximum[0], -0.01, maximum[2]], [minimum[0], -0.01, maximum[2]],
-    ]) },
-    count: 6,
-  };
+    out vec4 result;
+    void main() { result = vec4(uColor, 1.0); }`;
+  const geometry = device.program(vertex, fragment);
+  const floor = device.vertices([
+    [minimum[0], minimum[1] - 0.01, minimum[2]], [maximum[0], minimum[1] - 0.01, minimum[2]], [maximum[0], minimum[1] - 0.01, maximum[2]],
+    [minimum[0], minimum[1] - 0.01, minimum[2]], [maximum[0], minimum[1] - 0.01, maximum[2]], [minimum[0], minimum[1] - 0.01, maximum[2]],
+  ]);
   const lines = [];
   for (let axis = 0; axis < 3; axis++) {
     const other = (axis + 1) % 3;
@@ -44,57 +35,65 @@ export function createRenderer(ctx, app, simulation, camera) {
   }
   const grid = [];
   for (let division = 0; division <= 12; division++) {
-    const coordinate = -1.5 + division * 0.25;
-    grid.push([coordinate, 0, -1.5], [coordinate, 0, 1.5], [-1.5, 0, coordinate], [1.5, 0, coordinate]);
+    const horizontal = minimum[0] + division / 12 * (maximum[0] - minimum[0]);
+    const depth = minimum[2] + division / 12 * (maximum[2] - minimum[2]);
+    grid.push([horizontal, minimum[1], minimum[2]], [horizontal, minimum[1], maximum[2]], [minimum[0], minimum[1], depth], [maximum[0], minimum[1], depth]);
   }
-  const linePipeline = ctx.pipeline({ vert: vertex, frag: fragment, primitive: ctx.Primitive.Lines, depthTest: true });
-  const tank = { pipeline: linePipeline, attributes: { aPosition: ctx.vertexBuffer(lines) }, count: lines.length };
-  const floorGrid = { pipeline: linePipeline, attributes: { aPosition: ctx.vertexBuffer(grid) }, count: grid.length };
-  const particles = {
-    pipeline: ctx.pipeline({
-      primitive: ctx.Primitive.Points,
-      depthTest: true,
-      vert: glsl`
-        attribute vec3 aPosition;
-        attribute vec3 aColor;
-        uniform mat4 uView;
-        uniform mat4 uProjection;
-        uniform float uPointScale;
-        uniform float uMaxPointSize;
-        varying vec3 vColor;
-        void main() {
-          vec4 position = uView * vec4(aPosition, 1.0);
-          gl_Position = uProjection * position;
-          gl_PointSize = clamp(uPointScale / max(0.1, -position.z), 1.0, uMaxPointSize);
-          vColor = aColor;
-        }`,
-      frag: glsl`
-        precision highp float;
-        varying vec3 vColor;
-        void main() {
-          vec2 point = gl_PointCoord * 2.0 - 1.0;
-          float squaredRadius = dot(point, point);
-          if (squaredRadius > 1.0) discard;
-          vec3 normal = vec3(point.x, -point.y, sqrt(1.0 - squaredRadius));
-          float light = 0.25 + 0.75 * max(dot(normal, normalize(vec3(-0.4, 0.6, 1.0))), 0.0);
-          gl_FragColor = vec4(vColor * light, 1.0);
-        }`,
-    }),
-    attributes: { aPosition: pointBuffer, aColor: ctx.vertexBuffer(colors) },
-    count: simulation.count,
-  };
-  const pass = ctx.pass({ clearColor: [0.018, 0.035, 0.055, 1], clearDepth: 1 });
-  const maxPointSize = ctx.gl.getParameter(ctx.gl.ALIASED_POINT_SIZE_RANGE)[1];
+  const tankVAO = device.vertices(lines);
+  const gridVAO = device.vertices(grid);
+  const particles = device.program(`#version 300 es
+    precision highp float;
+    uniform sampler2D uPosition, uDensity;
+    uniform mat4 uView, uProjection;
+    uniform float uPointScale, uMaxPointSize;
+    uniform bool uShowDensity;
+    out vec3 vColor;
+    void main() {
+      int id = gl_VertexID;
+      ivec2 pixel = ivec2(id % ${simulation.width}, id / ${simulation.width});
+      vec4 position = uView * vec4(texelFetch(uPosition, pixel, 0).xyz, 1.0);
+      gl_Position = uProjection * position;
+      gl_PointSize = clamp(uPointScale / max(0.1, -position.z), 1.0, uMaxPointSize);
+      float height = float((id / ${simulation.parameters.particlesPerAxis}) % ${simulation.parameters.particlesPerAxis}) / float(${simulation.parameters.particlesPerAxis - 1});
+      vColor = vec3(0.15 + 0.45 * height, 0.65 + 0.25 * height, 0.8);
+      if (uShowDensity) {
+        float ratio = texelFetch(uDensity, pixel, 0).y;
+        float compressed = clamp((ratio - 1.0) * 5.0, 0.0, 1.0);
+        vColor = vec3(0.1 + compressed * 0.9, (0.25 + min(1.0, ratio) * 0.6) * (1.0 - compressed * 0.8), 0.9 - compressed * 0.7);
+      }
+    }`, `#version 300 es
+    precision highp float;
+    in vec3 vColor;
+    out vec4 result;
+    void main() {
+      vec2 point = gl_PointCoord * 2.0 - 1.0;
+      float squaredRadius = dot(point, point);
+      if (squaredRadius > 1.0) discard;
+      vec3 normal = vec3(point.x, -point.y, sqrt(1.0 - squaredRadius));
+      float light = 0.25 + 0.75 * max(dot(normal, normalize(vec3(-0.4, 0.6, 1.0))), 0.0);
+      result = vec4(vColor * light, 1.0);
+    }`);
+  const maxPointSize = gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE)[1];
+  const renderSurface = createWaterSurface(device, simulation, camera);
 
   return function render() {
     camera.update(app.width, app.height);
-    ctx.update(pointBuffer, { data: simulation.positions });
-    const uniforms = { uView: camera.view, uProjection: camera.projection };
-    ctx.submit({ pass }, () => {
-      ctx.submit(floor, { uniforms: { ...uniforms, uColor: [0.03, 0.075, 0.095] } });
-      ctx.submit(floorGrid, { uniforms: { ...uniforms, uColor: [0.07, 0.16, 0.18] } });
-      ctx.submit(particles, { uniforms: { ...uniforms, uPointScale: radius * app.canvas.height / Math.tan(Math.PI / 8), uMaxPointSize: maxPointSize } });
-      ctx.submit(tank, { uniforms: { ...uniforms, uColor: [0.18, 0.4, 0.45] } });
-    });
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.disable(gl.SCISSOR_TEST);
+    gl.depthMask(true);
+    gl.clearColor(0.018, 0.035, 0.055, 1);
+    gl.clearDepth(1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    const uniforms = { uView: camera.view, uProjection: camera.projection, uTank: simulation.tank };
+    device.draw(geometry, null, { ...uniforms, uColor: [0.03, 0.075, 0.095] }, { vao: floor, count: 6, depth: true });
+    device.draw(geometry, null, { ...uniforms, uColor: [0.07, 0.16, 0.18] }, { vao: gridVAO, count: grid.length, primitive: gl.LINES, depth: true });
+    const showDensity = simulation.parameters.showDensity && simulation.parameters.solver === 'fluid';
+    if (simulation.parameters.waterSurface && !showDensity) renderSurface();
+    else device.draw(particles, null, {
+      ...uniforms, uPosition: simulation.positionTexture, uDensity: simulation.densityTexture,
+      uShowDensity: showDensity ? 1 : 0,
+      uPointScale: radius * app.canvas.height / Math.tan(Math.PI / 8), uMaxPointSize: maxPointSize,
+    }, { count: simulation.count, primitive: gl.POINTS, depth: true });
+    device.draw(geometry, null, { ...uniforms, uColor: [0.18, 0.4, 0.45] }, { vao: tankVAO, count: lines.length, primitive: gl.LINES, depth: true });
   };
 }

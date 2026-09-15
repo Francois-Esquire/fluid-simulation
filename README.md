@@ -31,45 +31,84 @@ The normal view is a visualization, not a physical water-height field. Wind and 
 
 The solver uses bilinear semi-Lagrangian advection and an adjacent-cell Jacobi pressure solve, following the approach described in [GPU Gems: Fast Fluid Dynamics Simulation on the GPU](https://developer.nvidia.com/gpugems/gpugems/part-vi-beyond-triangles/chapter-38-fast-fluid-dynamics-simulation-gpu). Sampling clamps at the domain edges instead of wrapping to the opposite side. Pressure projection is iterative and approximate, not an instantaneous domain-wide solution. Surface colors visualize velocity, not a separate transported dye or water-height layer.
 
-## Water 3D: particle contacts
+## Water 3D: GPU particles and a movable tank
 
-This is a particle contact simulation, not a fluid solver yet. The tank starts paused so you can inspect the initial block. Play applies gravity; Pause freezes physics while leaving the camera active. Reset restores the same initial positions and pauses again. The Particle collisions checkbox resets and pauses the demo so you can compare a pile with the old overlapping-particle behavior.
+The active 3D demo requires WebGL2 and `EXT_color_buffer_float`. Unsupported devices show an explanation rather than silently running CPU physics. Water 2D and Smoke retain their WebGL/Pex paths.
 
-### Where the particles live
+All demos use `createContext({ gl })` from `src/app/context.js` for frame scheduling, resizing, and disposal. The factory delegates WebGL1 to Pex and supplies that lifecycle directly for WebGL2, where compute and rendering use raw GL. This avoids Pex 2's WebGL2 initialization bug, which passes a string rather than an enum to `getParameter`. The WebGL2 implementation does not expose Pex's rendering helpers.
 
-`src/water-3d/simulation.js` stores 4,096 particles in two CPU `Float32Array`s: XYZ positions and XYZ velocities. Each particle occupies three consecutive numbers. Unlike the previous scaffold, this pass does not store simulation state in textures or require floating-point texture support.
+### Try it
 
-Every rendered frame uploads positions to one existing GPU vertex buffer. `renderer.js` draws one shaded circular point sprite per particle, along with a floor grid and tank outline. These are not individual sphere meshes. Colors identify initial height, not density or pressure.
+1. Select Water 3D. It starts paused.
+2. Press Play, then drag inside the tank to grab it. Shake side to side or lift and drop it.
+3. Drag outside the tank, or hold Shift while dragging, to orbit. Scroll or use the zoom buttons to change distance.
+4. Pause to inspect. While paused, dragging repositions the tank and its contents together without adding momentum.
+5. Reset restores the centered tank and original particle block.
 
-### How they move
+Tank translation is limited to ±1.25 world units on each axis. During playback, it approaches the pointer target at a bounded speed. This avoids teleporting walls through the entire particle volume. The tank translates but does not rotate.
 
-The simulation accumulates elapsed time and advances in fixed 1/120-second steps. Each step first predicts motion:
+The Solver selector resets the demo for comparison: **Fluid density**, **Particle contacts**, or **No particle interaction**. All three active modes run on the GPU. Show density colors sparse neighborhoods blue, near-target neighborhoods teal, and compressed neighborhoods red.
 
-```text
-velocity = (velocity + gravity × timestep) × exp(-drag × timestep)
-predictedPosition = position + velocity × timestep
-```
+**Water surface** is checked by default for Water 3D. Uncheck it to inspect individual particles without resetting the simulation. Show density temporarily overrides the surface with diagnostic particles; disabling density restores the selected rendering mode. The default demo URL remains Water 2D.
 
-Then the contact solver projects overlapping particles apart and clamps them inside the tank. Corrected motion becomes the next velocity: `(correctedPosition - previousPosition) / timestep`. Wall restitution controls bounce on impacts; small impacts are stopped. Drag removes energy over time. Particle contacts themselves use positional correction without added restitution.
+### Water rendering
 
-### Why the pile spreads
+`surface.js` renders particle spheres into a depth texture, smooths depth with three pairs of edge-aware horizontal/vertical filters, then reconstructs normals for teal shading, specular highlights, and Fresnel reflection of a procedural sky. This follows the [screen-space fluid rendering approach described by NVIDIA](https://developer.download.nvidia.com/tools/docs/Fluid_Rendering_Alice.pdf). The final pass writes depth so the floor and tank edges can occlude water correctly.
 
-Each particle has a radius. If two centers are closer than two radii, each particle moves half the overlap distance along the line connecting them. The equal corrections preserve that pair's center of mass. Several passes are needed because fixing one contact can disturb another. This is the collision-constraint idea behind [Position Based Dynamics](https://matthias-research.github.io/pages/publications/posBasedDyn.pdf).
+Surface targets resize in place and cap their longest dimension at 1,280 pixels. Rendering uses the existing GPU position texture, with no particle readback. Enlarged rendering spheres connect nearby particles; they do not change collision radii or physics. This is an opaque screen-space approximation, not a reconstructed 3D mesh or physically refractive water. Silhouettes can still reveal individual particles, particularly in sparse splashes.
 
-Gravity pushes upper particles down. The floor prevents lower particles from descending, so slanted contacts redirect motion sideways. The block spreads into available space and forms a pile. Tiny deterministic offsets in the initial lattice prevent artificial, perfectly aligned columns. Particles do not grow, and the pile will not expand upward to fill the whole box like a gas.
+### Where the data lives
 
-`contacts.js` rebuilds a uniform spatial grid each solver iteration. Cells are one particle diameter wide; each particle checks its cell and the 26 adjacent cells. Only nearby candidate pairs receive distance tests, rather than all 8,386,560 possible pairs for 4,096 particles. Exactly coincident centers use a deterministic separation axis instead of dividing by zero.
+The default 1,728 particles live in RGBA32F textures. RGB stores XYZ position or velocity; alpha is spare. Texture addresses identify particles, not world-space locations. Storage pads to a power of two for sorting, and padded entries are excluded from neighbor solving and rendering.
 
-The default radius is `0.045`, with four `contactIterations` per timestep. Iterations are approximate: small residual overlaps can remain in a dense pile. More iterations improve contact resolution at a CPU cost. This is discrete collision detection, not a swept collision system; extreme externally assigned velocities can tunnel through other particles.
+Initialization and Reset upload the initial lattice. Normal stepping and rendering do not upload particle arrays or read particle state back to JavaScript. The vertex shader looks up particle positions directly using `gl_VertexID`. The optional particle view uses shaded point sprites.
 
-At most 0.1 seconds are simulated per rendered frame. This avoids a large catch-up burst after a stalled or backgrounded tab, at the cost of dropping excess elapsed time. Orbit controls change only the camera, never particle positions.
+WebGL2 fragment passes provide the compute work through [floating-point render targets](https://registry.khronos.org/webgl/extensions/EXT_color_buffer_float/). JavaScript schedules passes and supplies scalar parameters, elapsed time, camera matrices, and tank position.
 
-Edit `src/water-3d/config.js` for particle count, gravity, radius, timestep, wall bounce, drag, contact iterations, and bounds. Reload after changing defaults, especially radius and bounds, which determine the spatial grid. Live state is available at `window.app.state.water3D.simulation`. Its `stats` report candidate checks and overlap corrections across all iterations of the last physics step, not unique contacts.
+### A physics step on the GPU
 
-### What comes next
+1. Save previous positions and predict motion under gravity and drag.
+2. Assign each particle a spatial-cell key.
+3. Bitonic-sort cell keys and particle IDs on the GPU.
+4. Build cell start/end ranges with GPU binary searches.
+5. Solve contacts or density using each cell and its 26 neighbors.
+6. Rebuild the grid for each correction iteration; apply tank bounds.
+7. Reconstruct velocity from corrected displacement and resolve impacts relative to moving-wall velocity.
+8. In fluid mode, refresh density and smooth neighboring velocities.
 
-Particles now resist overlap and form a bead-like pile. They do not yet enforce a target fluid density, viscosity, or surface tension. Density constraints are the next step toward liquid behavior; simply making contacts bouncier does not produce water. Fluid rendering comes after those interactions work. This CPU reference makes the physics inspectable before moving computation to the GPU.
+Neighbor ranges are variable-length, not truncated to a fixed number of particles per cell. Ping-pong textures prevent a pass from reading its own output.
 
+Density solving uses a compression-only [Position Based Fluids](https://mmacklin.com/pbf_sig_preprint.pdf) variant: Poly6 density weights, Spiky gradients, regularized corrections, and mild neighbor velocity smoothing. Sparse neighborhoods do not attract each other. Iteration counts trade incompressibility for cost. The GPU applies bounded per-particle Jacobi corrections; results need not match the CPU reference bit-for-bit.
+
+### How shaking works
+
+Picking casts a ray through the pointer and intersects the tank box. A hit anchors a camera-facing drag plane, converting pointer motion into a world-space target. A miss, or Shift-drag, controls the camera.
+
+Particles stay in world space during playback. Moving the tank changes collision bounds, not every particle's position by the same offset. A wall pushes particles it reaches, with impacts evaluated relative to wall velocity. Density corrections transfer that disturbance through nearby particles. Moving the camera never applies a force.
+
+### Files and parameters
+
+- `gpu-device.js`: programs, floating-point textures, draw dispatch, and resource cleanup.
+- `gpu-shaders.js`: prediction, sorting, neighbor ranges, density, contacts, and velocity kernels.
+- `gpu-simulation.js`: GPU state, fixed-step scheduling, reset, and bounded tank motion.
+- `renderer.js`: tank geometry and selection between surface and particle rendering.
+- `surface.js`: particle depth, smoothing, and water shading.
+- `picking.js` and `camera.js`: ray picking, tank grabbing, orbit, and zoom.
+- `simulation.js`, `contacts.js`, and `density.js`: CPU reference only; not imported by the active demo.
+
+Edit `src/water-3d/config.js`, then reload. Radius and smoothing radius derive from initial lattice spacing. `restDensity` is a dimensionless target multiplier; `densityIterations`, `densityRelaxation`, and `viscosity` tune the fluid solve. `contactIterations` applies to bead mode. `tankSpeed` bounds translation speed. Gravity, drag, wall restitution, timestep, and bounds remain configurable. Reinitialize after structural changes such as particle count or smoothing radius.
+
+The fixed step is 1/120 second, with at most 1/30 second simulated per render. Excess elapsed time is discarded under load; GPU execution does not guarantee real-time speed on every device.
+
+### Inspecting results
+
+`window.app.state.water3D.simulation.backend` identifies the GPU path. For explicit debugging only, `simulation.readState()` reads positions, velocities, density ratios, sorted IDs, and cell ranges back to the CPU. It synchronizes with the GPU and can stall rendering, so the demo never calls it automatically. Each particle occupies four values; density ratio is the second value in each density texel.
+
+The CPU implementation remains a numerical reference. Initial GPU density estimates and a gravity-only step can be compared against it; longer trajectories diverge with floating-point order and differing correction limits.
+
+### Remaining limits
+
+This is still a learning solver with an approximate screen-space surface. There are no boundary-density particles, physical surface tension, vorticity confinement, arbitrary obstacles, or swept particle collisions. Small compression and overlap errors remain possible, particularly while shaking. Dense neighbor searches and repeated GPU sorts still cost work; this is not an unlimited-particle claim. A lost GPU context stops the demo with a recovery message.
 ## Development
 
 Use Node.js 22.12 or newer (CI uses Node.js 24).

@@ -1,5 +1,5 @@
 import './polyfills';
-import createContext from 'pex-context';
+import createContext from './app/context';
 import app from './app';
 import water2DModule from './water-2d';
 import smokeModule from './smoke';
@@ -20,14 +20,14 @@ function start() {
   const notice = document.getElementById('notice');
   notice.removeAttribute('role');
   notice.textContent = demo === 'water-3d'
-    ? 'Drag to orbit. Scroll or use the zoom buttons. Press Play to drop the particles.'
+    ? 'Drag the tank to move it. Play, then shake it. Drag outside or hold Shift to orbit.'
     : demo === 'smoke'
     ? 'Drag across the canvas to add smoke.'
     : 'Drag across the canvas to disturb the fluid.';
   app.state.dragging = false;
   try {
     window.app = app.set('options', { gl: {} }).initialize({
-      context: 'webgl',
+      context: demo === 'water-3d' ? 'webgl2' : 'webgl',
       events: { mouse: demo !== 'water-3d', touch: demo !== 'water-3d', device: false },
     });
     const ctx = createContext({ gl: app.gl });

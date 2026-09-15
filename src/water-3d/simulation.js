@@ -1,5 +1,6 @@
 import { water3DConfig } from './config.js';
 import { createContactSolver } from './contacts.js';
+import { createDensitySolver } from './density.js';
 
 export function createSimulation() {
   const parameters = {
@@ -14,7 +15,8 @@ export function createSimulation() {
   const velocities = new Float32Array(count * 3);
   const previousPositions = new Float32Array(positions.length);
   const contacts = createContactSolver(count, parameters);
-  const simulation = { parameters, count, positions, velocities, stats: contacts.stats, paused: true, steps: 0, reset, advance };
+  const density = createDensitySolver(count, parameters);
+  const simulation = { parameters, count, positions, velocities, stats: contacts.stats, density, paused: true, steps: 0, reset, advance };
   let accumulator = 0;
 
   function reset() {
@@ -33,6 +35,7 @@ export function createSimulation() {
     simulation.paused = true;
     contacts.stats.candidates = 0;
     contacts.stats.contacts = 0;
+    density.measure(positions);
   }
 
   function constrainBounds() {
@@ -59,7 +62,12 @@ export function createSimulation() {
     contacts.stats.candidates = 0;
     contacts.stats.contacts = 0;
     constrainBounds();
-    if (parameters.contactsEnabled) {
+    if (parameters.solver === 'fluid') {
+      for (let iteration = 0; iteration < parameters.densityIterations; iteration++) {
+        density.project(positions);
+        constrainBounds();
+      }
+    } else if (parameters.solver === 'contacts') {
       for (let iteration = 0; iteration < parameters.contactIterations; iteration++) {
         contacts.project(positions, (simulation.steps + iteration) % 2 === 1);
         constrainBounds();
@@ -76,6 +84,10 @@ export function createSimulation() {
           velocities[index] = Math.abs(incoming) > 0.5 ? -incoming * restitution : 0;
         }
       }
+    }
+    if (parameters.solver === 'fluid') {
+      density.measure(positions);
+      density.smoothVelocities(velocities);
     }
     simulation.steps++;
   }
