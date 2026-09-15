@@ -134,6 +134,7 @@ export default class WebGLApplication {
     this.ctx = null;
     this.modules = [];
     delete this.state.water;
+    delete this.state.water3D;
     if (this.canvas) this.canvas.remove();
     this.initialized = false;
   }

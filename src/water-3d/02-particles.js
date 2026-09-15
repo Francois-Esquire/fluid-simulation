@@ -91,9 +91,7 @@ export default function particlesModule(ctx, app) {
 
   return function renderParticles() {
     ctx.submit(drawParticlesCmd, {
-      pass: ctx.pass({
-        color: [textures.particle2],
-      }),
+      pass: app.state.water3D.passFor(textures.particle2),
       uniforms: {
         uTime: app.state.time,
         uGridSize: parameters.gridSize,

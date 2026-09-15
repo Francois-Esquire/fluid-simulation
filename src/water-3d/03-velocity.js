@@ -42,9 +42,7 @@ export default function velocityModule(ctx, app) {
 
   return function renderVelocity() {
     ctx.submit(drawVelocityCmd, {
-      pass: ctx.pass({
-        color: [textures.velocity2],
-      }),
+      pass: app.state.water3D.passFor(textures.velocity2),
       uniforms: {
         uVelocityTexture: textures.velocity1,
       },

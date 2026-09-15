@@ -15,6 +15,7 @@ const smokeSourceFragmentShader = glsl`
   precision highp float;
 
   uniform vec2 uMouse;
+  uniform bool uDragging;
   uniform vec2 uResolution;
   uniform sampler2D uScreenTexture;
 
@@ -31,7 +32,7 @@ const smokeSourceFragmentShader = glsl`
     float dist = distance(uMouse.xy, gl_FragCoord.xy);
 
     float radius = 20.;
-    if (dist < radius) {
+    if (uDragging && dist < radius) {
       float factor = 1. - (dist / radius);
       float base = 0.05 * (factor * 4.);
       gl_FragColor.rgb += base;
@@ -144,15 +145,21 @@ export default function smoke(ctx, app) {
   };
 
   return function renderSmoke() {
-    const { state: {mx, my}, width, height } = app;
+    const { state: {mx, my, dragging}, width, height } = app;
+
+    if (screenMap.width !== width || screenMap.height !== height) {
+      ctx.update(screenMap, { width, height });
+      ctx.update(smokeMap, { width, height });
+    }
 
     const uResolution = [width, height];
-    const uMouse = [mx, my];
+    const uMouse = [mx * width, my * height];
 
     ctx.submit(drawSmoke, {
       uniforms: {
         uResolution,
         uMouse,
+        uDragging: dragging,
       },
     });
     ctx.submit(drawTexture, {

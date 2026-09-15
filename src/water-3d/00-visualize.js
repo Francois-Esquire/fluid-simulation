@@ -67,6 +67,7 @@ export default function visualizeToScreenModule(ctx, app) {
       mat4 mvpMatrix = uProjectionMatrix * uViewMatrix * uModelMatrix;
 
       gl_Position = mvpMatrix * vec4(position.xyz, 1.0);
+      gl_PointSize = 1.0;
     }`;
 
   const drawParticlesToScreenFragmentShader = glsl`
@@ -86,6 +87,7 @@ export default function visualizeToScreenModule(ctx, app) {
   const drawVisualizationCmd = {
     pass: ctx.pass({
       color: [textures.screen],
+      clearColor: [0, 0, 0, 1],
     }),
     pipeline: ctx.pipeline({
       vert: drawParticlesToScreenVertexShader,
@@ -107,12 +109,13 @@ export default function visualizeToScreenModule(ctx, app) {
   };
 
   return function waterRenderer() {
+    if (textures.screen.width !== app.width || textures.screen.height !== app.height) {
+      ctx.update(textures.screen, { width: app.width, height: app.height });
+      mat4.perspective(uProjectionMatrix, Math.PI / 4, app.width / app.height, 0.1, 1000);
+    }
     ctx.submit(drawVisualizationCmd, {
-      pass: ctx.pass({
-        color: [textures.screen],
-        clearColor: [0, 0, 0, 1],
-      }),
       uniforms: {
+        uProjectionMatrix,
         uTime: app.state.time,
         uParticlesTexture: textures.particle1,
       },

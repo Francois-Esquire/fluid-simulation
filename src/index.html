@@ -14,12 +14,22 @@
       font-family: system-ui, sans-serif;
     }
     canvas { display: block; touch-action: none; }
-    .notice { position: fixed; top: 12px; left: 12px; max-width: calc(100% - 48px); padding: 10px 12px; background: #111c; border-radius: 6px; pointer-events: none; }
+    .controls { position: fixed; z-index: 1; top: 12px; left: 12px; max-width: calc(100% - 48px); padding: 10px 12px; background: #111c; border-radius: 6px; }
+    select { margin-left: 8px; padding: 4px; color: white; background: #222; font: inherit; }
+    .notice { margin-top: 8px; font-size: 14px; }
   </style>
 </head>
 
 <body>
-  <div class="notice" id="notice">Drag across the canvas to disturb the fluid.</div>
+  <div class="controls">
+    <label for="demo">Demo</label>
+    <select id="demo">
+      <option value="water-2d">Water 2D</option>
+      <option value="smoke">Smoke</option>
+      <option value="water-3d">Water 3D (experimental)</option>
+    </select>
+    <div class="notice" id="notice" aria-live="polite">Drag across the canvas to disturb the fluid.</div>
+  </div>
   <script type="module" src="./index.js"></script>
 </body>
 

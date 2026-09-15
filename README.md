@@ -1,6 +1,15 @@
 # Fluid simulation
 
-A WebGL playground built with Pex. The active demo is the 2D water simulation: drag across the canvas to disturb the fluid.
+A WebGL playground built with Pex. Select Water 2D or Smoke and drag to interact, or view the experimental Water 3D particle study.
+
+The selector updates the `demo` query parameter, so demos can be bookmarked and shared:
+
+- `?demo=water-2d` selects Water 2D.
+- `?demo=smoke` selects Smoke.
+- `?demo=water-3d` selects the experimental Water 3D particle preview. It does not yet simulate fluid motion or respond to dragging.
+- Missing or unknown values fall back to Water 2D.
+
+Browser Back and Forward restore the selected demo. Switching demos resets the simulation.
 
 ## Development
 
@@ -24,7 +33,7 @@ The production build goes into ignored `public/`. npm and `package-lock.json` re
 
 Pull requests and pushes to `main` run a clean install and production build. This prototype has no automated test suite or coverage gate.
 
-The Pages deployment job depends on the build job and deploys its uploaded artifact. After pushing the workflow, choose **GitHub Actions** in **Settings → Pages → Build and deployment**. The existing `gh-pages` deployment remains in place until then.
+GitHub Pages uses GitHub Actions. The deployment job depends on the build job and deploys its uploaded artifact.
 
 Site: [Fluid simulation](https://francois-esquire.github.io/fluid-simulation/).
 
@@ -32,7 +41,7 @@ Site: [Fluid simulation](https://francois-esquire.github.io/fluid-simulation/).
 
 The entry point is `src/index.js`; the active simulation lives in `src/water-2d/`. The app owns input, animation, resizing, and GPU cleanup. Simulation modules initialize resources and return a per-frame render function.
 
-Camera, smoke, terrain, ray marching, 3D water, and transform-feedback studies remain as archived experiments. They are not loaded or validated by the current demo.
+The repository contains Water 2D, Smoke, and the experimental Water 3D preview. Unrelated studies have been removed; their source remains available in Git history.
 
 Pex remains on its compatible 2.x API for this pass. Browser `assert` and `process` shims replace compatibility previously supplied by Parcel; unused dependencies have been removed.
 
@@ -41,4 +50,3 @@ Pex remains on its compatible 2.x API for this pass. Browser `assert` and `proce
 - Simulation controls, visual polish, and adjustable quality.
 - Solver timing, interaction direction, boundary conditions, and numerical behavior.
 - Broader GPU compatibility and a deliberate migration to newer Pex APIs.
-- Revisiting the archived studies individually.

@@ -48,7 +48,6 @@ export default function water3D(ctx, app) {
   };
 
   if (textureFloat) {
-    screenTextureOptions.pixelFormat = ctx.PixelFormat.RGBA32F;
     simulationTextureOptions.pixelFormat = ctx.PixelFormat.RGBA32F;
   }
 
@@ -71,6 +70,12 @@ export default function water3D(ctx, app) {
     textures[texture2] = temp;
   }
 
+  const passes = new Map();
+  function passFor(texture) {
+    if (!passes.has(texture)) passes.set(texture, ctx.pass({ color: [texture] }));
+    return passes.get(texture);
+  }
+
   // drawing surface
 
   const { positions, texCoords, faces } = quad;
@@ -90,11 +95,12 @@ export default function water3D(ctx, app) {
     parameters,
     textures,
     swap,
+    passFor,
   };
 
   const renderable = [];
-  const simulation = [renderModule, particlesModule, velocityModule];
-  const misc = [visualizeModule];
+  const simulation = [particlesModule, velocityModule];
+  const misc = [visualizeModule, renderModule];
 
   return [].concat(renderable, simulation, misc);
 }
