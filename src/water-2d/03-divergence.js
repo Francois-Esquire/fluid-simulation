@@ -25,14 +25,14 @@ export default function divergenceModule(ctx, app) {
     uniform sampler2D uVelocityTexture;
 
     vec2 u(vec2 coord) {
-      return texture2D(uVelocityTexture, fract(coord)).xy;
+      return texture2D(uVelocityTexture, coord).xy;
     }
 
     void main() {
       vec2 unit = vec2(0.0, uGridUnit);
       float dx = u( vTexCoord + unit.yx ).x - u( vTexCoord - unit.yx ).x;
       float dy = u( vTexCoord + unit.xy ).y - u( vTexCoord - unit.xy ).y;
-      float divergence = ( -2.0 * uGridUnit * uDensity / uTimeStep ) * ( dx + dy );
+      float divergence = (-0.5 * uGridUnit * uDensity / uTimeStep) * (dx + dy);
 
       gl_FragColor = vec4(divergence, 0., 0., 0.);
     }`;

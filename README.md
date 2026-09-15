@@ -11,6 +11,26 @@ The selector updates the `demo` query parameter, so demos can be bookmarked and 
 
 Browser Back and Forward restore the selected demo. Switching demos resets the simulation.
 
+## Water 2D parameters
+
+Edit `src/water-2d/config.js` to set defaults. The same values are available at `window.app.state.water.parameters` while Water 2D is running. Grid size and pressure iteration changes require restarting the demo.
+
+- `gridSize`: simulation resolution, independent of display resolution. Defaults to 256 cells per side.
+- `jacobiIterations`: pressure solver iterations per frame, default 60. Larger grids generally need more iterations to spread pressure corrections across the domain.
+- `velocityDissipation`: exponential velocity decay per simulation second, default `1.2`. Set to `0` to disable explicit damping; interpolation still introduces numerical diffusion.
+- `wind`: constant acceleration `[x, y]` per simulation second. Positive X is right; positive Y is up. `[0, 0]` is neutral. Try `[-0.1, -0.1]` for a bottom-left bias, not an exact reproduction of the old bug.
+- `interactionRadius`: brush radius as a fraction of canvas height, corrected for aspect ratio.
+- `interactionStrength`: outward force while pressing. Set to `0` for drag-only interaction.
+- `dragStrength`: strength of the force along pointer movement.
+- `colorMode`: `surface` for a shaded two-color palette, `normal` for encoded normals derived from flow-speed gradients, or `legacy` for the original velocity-based colors.
+- `baseColor` and `highlightColor`: RGB arrays in the range `[0, 1]` for `surface` mode.
+- `colorScale`: how quickly speed reaches the highlight color.
+- `normalStrength`: slope strength for surface shading and normal visualization.
+
+The normal view is a visualization, not a physical water-height field. Wind and press forces use the existing fixed simulation timestep; simulation speed is still tied to rendered frames.
+
+The solver uses bilinear semi-Lagrangian advection and an adjacent-cell Jacobi pressure solve, following the approach described in [GPU Gems: Fast Fluid Dynamics Simulation on the GPU](https://developer.nvidia.com/gpugems/gpugems/part-vi-beyond-triangles/chapter-38-fast-fluid-dynamics-simulation-gpu). Sampling clamps at the domain edges instead of wrapping to the opposite side. Pressure projection is iterative and approximate, not an instantaneous domain-wide solution. Surface colors visualize velocity, not a separate transported dye or water-height layer.
+
 ## Development
 
 Use Node.js 22.12 or newer (CI uses Node.js 24).

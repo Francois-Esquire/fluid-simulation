@@ -29,6 +29,8 @@ export default function velocityAdvectionModule(ctx, app) {
     indices,
     uniforms: {
       uTimeStep: timestep,
+      uGridSize: gridSize,
+      uDissipation: app.state.water.parameters.velocityDissipation,
       uInputTexture: velocity1,
       uSamplingTexture: velocity1,
     },
@@ -143,6 +145,7 @@ export default function velocityAdvectionModule(ctx, app) {
     ctx.submit(advectVelocityCmd, {
       pass: app.state.water.passFor(water.textures.velocity2),
       uniforms: {
+        uDissipation: water.parameters.velocityDissipation,
         uInputTexture: water.textures.velocity1,
         uSamplingTexture: water.textures.velocity1,
       },

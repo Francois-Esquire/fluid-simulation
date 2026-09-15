@@ -1,107 +1,70 @@
 import { screenVertexShader, glsl } from './shaders';
 
 export default function interactionModule(ctx, app) {
-  const {
-    state: {
-      water: {
-        attributes,
-        indices,
-        parameters: { timestep },
-        textures: { velocity1, velocity2 },
-        swap,
-      },
-    },
-  } = app;
+  const { attributes, indices, textures, passFor, swap } = app.state.water;
+  let previousMouse = null;
 
-  const interactionNoiseFragmentShader = glsl`
+  const fragmentShader = glsl`
     precision highp float;
-    precision highp sampler2D;
-
     varying vec2 vTexCoord;
 
-    uniform bool uDragging;
-    uniform float uTimeStep;
-    uniform vec2 uResolution;
-    uniform vec2 uMouse;
     uniform sampler2D uInputTexture;
+    uniform vec2 uMouse;
+    uniform vec2 uPointerDelta;
+    uniform vec2 uWind;
+    uniform float uAspect;
+    uniform float uRadius;
+    uniform float uStrength;
+    uniform float uDragStrength;
+    uniform float uTimeStep;
+    uniform bool uDragging;
 
     void main() {
-      gl_FragColor = texture2D(uInputTexture, fract(vTexCoord));
+      vec2 velocity = texture2D(uInputTexture, vTexCoord).xy;
+      velocity += uWind * uTimeStep;
 
       if (uDragging) {
-        float dist = distance(uMouse, vTexCoord);
-        float radius = .1;
-
-        if (dist < radius) {
-          float ratio = log(dist / radius);
-          vec2 dir = uMouse - vTexCoord;
-          gl_FragColor.rg /= dot(vec2(dir), gl_FragColor.xy) * vec2(1.);
-        }
+        vec2 offset = (vTexCoord - uMouse) * vec2(uAspect, 1.0);
+        float distance = length(offset);
+        float falloff = 1.0 - smoothstep(0.0, uRadius, distance);
+        vec2 radial = offset / max(distance, 0.00001);
+        radial /= vec2(uAspect, 1.0);
+        velocity += falloff * (
+          radial * uStrength * uTimeStep + uPointerDelta * uDragStrength
+        );
       }
-    }`;
-  const interactionFragmentShader = glsl`
-    precision highp float;
-    precision highp sampler2D;
 
-    varying vec2 vTexCoord;
-
-    uniform bool uDragging;
-    uniform float uTimeStep;
-    uniform vec2 uResolution;
-    uniform vec2 uMouse;
-    uniform sampler2D uInputTexture;
-
-    void main() {
-      gl_FragColor = texture2D(uInputTexture, fract(vTexCoord));
-
-      if (uDragging) {
-        float dist = distance(uMouse, vTexCoord);
-        float radius = .1 * uResolution.x/uResolution.y / 2.;
-
-        radius /= exp(dist);
-
-        if (dist < radius) {
-          float ratio = abs(log(max(dist * radius, 0.000001)));
-
-          vec2 dir = (uMouse / uResolution) * vTexCoord;
-          gl_FragColor.rg += dir / vec2(pow(ratio, .006125));
-
-          // vec2 dir = uMouse - vTexCoord;
-          // gl_FragColor.rg /= dot(vec2(dir), gl_FragColor.xy) * vec2(1.);
-          gl_FragColor.rg += (vec2(.75) * ( (2. * dist / radius - 1.)  * 0.5 - 0.5 ));
-        }
-
-        // if (dist < radius) gl_FragColor.rgb += (vec3(.75) * ( (2. * dist / radius - 1.)  * 0.5 - 0.5 ));
-      }
+      gl_FragColor = vec4(velocity, 0.0, 1.0);
     }`;
 
-  const drawColorInteractionCmd = {
-    pass: ctx.pass({
-      color: [velocity2],
-    }),
-    pipeline: ctx.pipeline({
-      vert: screenVertexShader,
-      frag: interactionFragmentShader,
-    }),
+  const command = {
+    pipeline: ctx.pipeline({ vert: screenVertexShader, frag: fragmentShader }),
     attributes,
     indices,
-    uniforms: {
-      uMouse: [0, 0],
-      uTimeStep: timestep,
-      uInputTexture: velocity1,
-    },
   };
 
   return function renderInteractions() {
     const { mx, my, dragging, water } = app.state;
+    const { parameters } = water;
+    const mouse = [mx, my];
+    const delta = dragging && previousMouse
+      ? [mx - previousMouse[0], my - previousMouse[1]]
+      : [0, 0];
+    previousMouse = dragging ? mouse : null;
 
-    ctx.submit(drawColorInteractionCmd, {
-      pass: app.state.water.passFor(water.textures.velocity2),
+    ctx.submit(command, {
+      pass: passFor(textures.velocity2),
       uniforms: {
-        uResolution: [app.width, app.height],
+        uInputTexture: textures.velocity1,
+        uMouse: mouse,
+        uPointerDelta: delta,
+        uWind: parameters.wind,
+        uAspect: app.width / app.height,
+        uRadius: parameters.interactionRadius,
+        uStrength: parameters.interactionStrength,
+        uDragStrength: parameters.dragStrength,
+        uTimeStep: parameters.timestep,
         uDragging: dragging,
-        uMouse: [mx, my],
-        uInputTexture: water.textures.velocity1,
       },
     });
     swap('velocity1', 'velocity2');

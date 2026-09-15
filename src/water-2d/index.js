@@ -1,4 +1,5 @@
 import { quad } from '../shapes';
+import { water2DConfig } from './config';
 
 import renderPass from './01-render';
 import drawVelocityPass from './02-velocity';
@@ -9,23 +10,18 @@ import drawPostProcessingPass from './06-post';
 
 import drawInteractionsPass from './00-interact';
 
-/**
- *
- * TODO:
- * - Set Bounds
- * - Calculate delta/direction of interaction to push the veloicty field correctly; its just additive now.
- *
- */
-
 export default function water2D(ctx, app) {
-  const resolution = 1024;
+  const resolution = water2DConfig.gridSize;
   const parameters = {
     gridSize: resolution,
     gridUnit: 1 / resolution,
     timestep: 1 / 120.0,
-    jacobiIterations: 10,
     // quality
     density: 1.0,
+    ...water2DConfig,
+    wind: [...water2DConfig.wind],
+    baseColor: [...water2DConfig.baseColor],
+    highlightColor: [...water2DConfig.highlightColor],
   };
 
   // drawing surface
@@ -44,6 +40,8 @@ export default function water2D(ctx, app) {
     width: app.width,
     pixelFormat: ctx.PixelFormat.RGBA8,
     encoding: ctx.Encoding.SRGB,
+    min: ctx.Filter.Linear,
+    mag: ctx.Filter.Linear,
   };
 
   const simulationTextureOptions = {
@@ -123,6 +121,7 @@ export default function water2D(ctx, app) {
     // simulation passes in order
     // TODO: more granular, need to add steps and break down a few
     drawVelocityPass,
+    drawInteractionsPass,
     drawDivergencePass,
     drawPressurePass,
   ];
@@ -130,9 +129,7 @@ export default function water2D(ctx, app) {
   const visuals = [
     drawColorPass,
     drawPostProcessingPass,
-    // misc
-    drawInteractionsPass,
   ];
 
-  return [renderPass].concat(simulation, visuals);
+  return [].concat(simulation, visuals, [renderPass]);
 }

@@ -24,13 +24,12 @@ export default function pressureModule(ctx, app) {
     uniform sampler2D uPressureTexture;
 
     float u(vec2 coords) {
-      return texture2D(uPressureTexture, fract(coords)).x;
+      return texture2D(uPressureTexture, coords).x;
     }
 
     void main() {
-      float gridUnit = 2.0 * uGridUnit;
-      vec2 unit = vec2(0., gridUnit);
-      float divergence = texture2D(uDivergenceTexture, fract(vTexCoord)).x;
+      vec2 unit = vec2(0., uGridUnit);
+      float divergence = texture2D(uDivergenceTexture, vTexCoord).x;
 
       float pressure = (1./4.) * (
         divergence
@@ -56,7 +55,7 @@ export default function pressureModule(ctx, app) {
     uniform sampler2D uPressureTexture;
 
     float p(vec2 coord) {
-      return texture2D(uPressureTexture, fract(coord)).x;
+      return texture2D(uPressureTexture, coord).x;
     }
 
     void main() {
@@ -67,7 +66,7 @@ export default function pressureModule(ctx, app) {
       float top = p(vTexCoord + unit.xy);
       float bottom = p(vTexCoord - unit.xy);
 
-      vec2 gradient = (vec2(right - left, top - bottom) / 1.0) + 0.0002;
+      vec2 gradient = vec2(right - left, top - bottom);
 
       vec2 uA = texture2D(uVelocityTexture, vTexCoord).xy;
 
@@ -115,21 +114,20 @@ export default function pressureModule(ctx, app) {
     },
   };
 
+  const clearPressurePasses = [pressure1, pressure2].map(texture =>
+    ctx.pass({ color: [texture], clearColor: [0, 0, 0, 1] }),
+  );
+
   return function renderPressure() {
-    for (let i = 0; i < jacobiIterations; i++) {
+    clearPressurePasses.forEach(pass => ctx.submit({ pass }));
+    for (let iteration = 0; iteration < jacobiIterations; iteration++) {
       ctx.submit(calculatePressureCmd, {
         pass: app.state.water.passFor(app.state.water.textures.pressure2),
         uniforms: {
           uPressureTexture: app.state.water.textures.pressure1,
         },
       });
-      ctx.submit(calculatePressureCmd, {
-        pass: app.state.water.passFor(app.state.water.textures.pressure1),
-        uniforms: {
-          uPressureTexture: app.state.water.textures.pressure2,
-        },
-      });
-      // swap('pressure1', 'pressure2');
+      swap('pressure1', 'pressure2');
     }
 
     ctx.submit(subtractPressureCmd, {

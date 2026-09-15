@@ -1,119 +1,69 @@
-import { screenVertexShader, glsl } from './shaders';
+import { screenVertexShader, glsl, bilinearSampling } from './shaders';
 
 export default function renderWaterModule(ctx, app) {
-  const {
-    state: {
-      water: {
-        indices,
-        attributes,
-        textures: { color1, velocity1 },
-      },
-    },
-  } = app;
+  const { indices, attributes, textures, passFor } = app.state.water;
+  const modes = { surface: 0, normal: 1, legacy: 2 };
 
-  const drawToScreenFragmentShader = glsl`
+  const fragmentShader = glsl`
     precision highp float;
-    precision highp sampler2D;
-
     varying vec2 vTexCoord;
-    uniform sampler2D uVelocityTexture;
 
-    float dot2(vec2 v) {
-      return dot(v, v);
+    uniform sampler2D uVelocityTexture;
+    uniform float uGridUnit;
+    uniform float uNormalStrength;
+    uniform float uColorScale;
+    uniform int uColorMode;
+    uniform vec3 uBaseColor;
+    uniform vec3 uHighlightColor;
+
+    ${bilinearSampling}
+
+    float heightAt(vec2 coords) {
+      return length(sampleBilinear(uVelocityTexture, coords, 1.0 / uGridUnit).xy);
     }
 
     void main() {
-      vec2 velocity = texture2D(uVelocityTexture, vTexCoord).xy;
-      vec3 color = vec3(0.2, 0.5, 0.8) - vec3(velocity, dot2(velocity));
+      vec2 velocity = sampleBilinear(uVelocityTexture, vTexCoord, 1.0 / uGridUnit).xy;
+      vec2 stepX = vec2(uGridUnit, 0.0);
+      vec2 stepY = vec2(0.0, uGridUnit);
+      vec2 slope = vec2(
+        heightAt(vTexCoord + stepX) - heightAt(vTexCoord - stepX),
+        heightAt(vTexCoord + stepY) - heightAt(vTexCoord - stepY)
+      ) / (2.0 * uGridUnit);
+      vec3 normal = normalize(vec3(-slope * uNormalStrength, 1.0));
+      vec3 color;
+
+      if (uColorMode == 2) {
+        color = vec3(0.2, 0.5, 0.8) - vec3(velocity, dot(velocity, velocity));
+      } else if (uColorMode == 1) {
+        color = normal * 0.5 + 0.5;
+      } else {
+        float intensity = 1.0 - exp(-length(velocity) * uColorScale);
+        float light = 0.4 + 0.6 * max(dot(normal, normalize(vec3(-0.4, 0.6, 1.0))), 0.0);
+        color = mix(uBaseColor, uHighlightColor, intensity) * light;
+      }
 
       gl_FragColor = vec4(color, 1.0);
-      // gl_FragColor.rgb = normalize(gl_FragColor.rgb);
     }`;
 
-  const drawMilkToScreenFragmentShader = glsl`
-    precision highp float;
-    precision highp sampler2D;
-
-    varying vec2 vTexCoord;
-    uniform sampler2D uVelocityTexture;
-
-    void main() {
-      vec2 velocity = texture2D(uVelocityTexture, vTexCoord).xy;
-      vec3 color = vec3(1.0) - length(velocity * 2.0 - 1.0) * 0.2;
-      gl_FragColor = vec4(color, 1.0);
-      // gl_FragColor.rgb += color * 0.25 + 0.25;
-    }`;
-
-  const drawGrayScaleToNormalFragmentShader = glsl`
-    precision highp float;
-    precision highp sampler2D;
-
-    varying vec2 vTexCoord;
-    uniform sampler2D uVelocityTexture;
-
-    float texel = 1./1024.0;
-    float normalStrength = 50.;
-    vec3 gr = vec3(0.299, 0.587, 0.114);
-
-    void main() {
-      vec2 velocity = texture2D(uVelocityTexture, vTexCoord).xy;
-      vec2 velocityRight = texture2D(uVelocityTexture, vTexCoord + vec2(texel, 0.)).xy;
-      vec2 velocityUp = texture2D(uVelocityTexture, vTexCoord + vec2(0., texel)).xy;
-
-      float color = dot(vec3(1.0) - length(velocity * 2. - 1.), gr);
-      float colorRight = dot(vec3(1.0) - length(velocityRight * 2. - 1.), gr);
-      float colorUp = dot(vec3(1.0) - length(velocityUp * 2. - 1.), gr);
-
-      float deltaRight = colorRight - color;
-      float deltaUp = colorUp - color;
-
-      vec3 graynorm = cross(
-        vec3(1, 0, deltaRight * normalStrength),
-        vec3(0, 1, deltaUp * normalStrength)
-      );
-
-      vec3 normal = normalize(graynorm);
-
-      gl_FragColor = vec4(normal, 1.0);
-    }`;
-
-  const drawDebugToScreenFragmentShader = glsl`
-    precision highp float;
-    precision highp sampler2D;
-
-    varying vec2 vTexCoord;
-    uniform sampler2D uVelocityTexture;
-
-    void main() {
-      vec2 velocity = texture2D(uVelocityTexture, vTexCoord).xy;
-      vec3 color = vec3(velocity, 0.0);
-      color = normalize(color);
-      gl_FragColor = vec4(color, 1.0);
-    }`;
-
-  const drawCmd = {
-    pass: ctx.pass({
-      color: [color1],
-    }),
-    pipeline: ctx.pipeline({
-      vert: screenVertexShader,
-      frag: drawToScreenFragmentShader,
-      // frag: drawMilkToScreenFragmentShader,
-      // frag: drawGrayScaleToNormalFragmentShader,
-      // frag: drawDebugToScreenFragmentShader,
-    }),
+  const command = {
+    pipeline: ctx.pipeline({ vert: screenVertexShader, frag: fragmentShader }),
     attributes,
     indices,
-    uniforms: {
-      uVelocityTexture: velocity1,
-    },
   };
 
   return function waterRenderer() {
-    ctx.submit(drawCmd, {
-      pass: app.state.water.passFor(app.state.water.textures.color1),
+    const { parameters } = app.state.water;
+    ctx.submit(command, {
+      pass: passFor(textures.color1),
       uniforms: {
-        uVelocityTexture: app.state.water.textures.velocity1,
+        uVelocityTexture: textures.velocity1,
+        uGridUnit: parameters.gridUnit,
+        uNormalStrength: parameters.normalStrength,
+        uColorScale: parameters.colorScale,
+        uColorMode: modes[parameters.colorMode] ?? modes.surface,
+        uBaseColor: parameters.baseColor,
+        uHighlightColor: parameters.highlightColor,
       },
     });
   };
