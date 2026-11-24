@@ -5,3 +5,7 @@ public
 examples/
 
 *.log
+
+# Local agent skills
+/.agents/skills
+/.claude/skills
